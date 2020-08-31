@@ -1,0 +1,11 @@
+#!/bin/bash
+
+[ -z $1 ] && echo "1 info missing" && exit
+[ -z $2 ] && echo "2 info missing" && exit
+[ -z $3 ] && echo "3 info missing" && exit
+[ -z $4 ] && echo "4 info missing" && exit
+[ -z $5 ] && echo "5 info missing" && exit
+[ -z $6 ] && echo "6 info missing" && exit
+
+rm data.txt
+parallel ./get1out data{1}.root data.txt $2 $3 $4 $5 $6 ::: $(seq "$1") 
