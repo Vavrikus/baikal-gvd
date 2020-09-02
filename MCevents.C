@@ -1,6 +1,6 @@
-#include "transformations.h"
-#include "MCevents.h"
-#include "threading.h"
+#include "../transformations.h"
+#include "../MCevents.h"
+#include "../threading.h"
 
 #include "TRandom2.h"
 #include "TF1.h"
@@ -17,7 +17,9 @@ void operator+=(std::vector<T>& v1, const std::vector<T>& v2)
 //timeWindow in days and rate in events per day
 //MJDstart is modified julian date
 //either generate number of events from rate or take them as parameter
-std::vector<MCEvent>* getBackround(double MJDstart, double timeWindow, int numEvents, double rate = 0)
+std::vector<MCEvent>* getBackround(double MJDstart, double timeWindow, int numEvents, double timeMean,
+                                   double timeSigma, double ra, double dec, double posSigma, double numOfSigma,
+                                   double rate = 0)
 {
 	TRandom2 rnd(0);
 
@@ -56,7 +58,11 @@ std::vector<MCEvent>* getBackround(double MJDstart, double timeWindow, int numEv
 
 		eqCoor pos 		= horToEq(horCoor(altitude,azimuth,uTime+time));
 
-		output->emplace_back(MCEvent{energy, pos.rAsc, pos.dec, time, 'B'});
+		//saving only events close to signal
+		if(angularDistance(ra,dec,pos.rAsc,pos.dec)<numOfSigma*posSigma) //and abs(time - timeMean) < numOfSigma*timeSigma)
+		{
+			output->emplace_back(MCEvent{energy, pos.rAsc, pos.dec, time, 'B'});
+		}
 	}
 
 	delete energyDist;
@@ -118,7 +124,8 @@ std::vector<MCEvent>* getSignalGaus(int eventCount, double ra, double dec, doubl
 std::vector<MCEvent>* getMixed(int numBackround, int numSignal, double MJDstart, double timeWindow, 
 							   double signalMean, double signalSigma, double posSigma, double ra, double dec)
 {
-	std::vector<MCEvent>* mixed  = getBackround(MJDstart, timeWindow, numBackround);
+	std::vector<MCEvent>* mixed  = getBackround(MJDstart, timeWindow, numBackround, signalMean, signalSigma,
+												ra, dec, posSigma, 7);
 	std::vector<MCEvent>* signal = getSignalGaus(numSignal, ra, dec, posSigma, signalMean, signalSigma);
 
 	*mixed += *signal;
