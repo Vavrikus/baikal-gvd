@@ -1,6 +1,6 @@
-#include "../transformations.h"
-#include "../MCevents.h"
-#include "../threading.h"
+#include "transformations.h"
+#include "MCevents.h"
+#include "threading.h"
 
 #include <fstream>
 
