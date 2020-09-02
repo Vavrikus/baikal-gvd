@@ -1,0 +1,5 @@
+	#!/bin/bash
+	for i in {1..$1}
+	do
+		time bash getstats 100000 500 0 365.25 1 5
+	done

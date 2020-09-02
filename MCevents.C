@@ -51,17 +51,21 @@ std::vector<MCEvent>* getBackround(double MJDstart, double timeWindow, int numEv
 	//generating random values
 	for (int i = 0; i < bEvents; ++i)
 	{
-		double energy   = energyDist->GetRandom();
-		double altitude = altDist->GetRandom();
-		double azimuth  = 360*rnd.Rndm();
-		double time  	= UnixToMJD(uTime + 86400*timeWindow*rnd.Rndm());
+		double time = UnixToMJD(uTime + 86400*timeWindow*rnd.Rndm());
 
-		eqCoor pos 		= horToEq(horCoor(altitude,azimuth,uTime+time));
-
-		//saving only events close to signal
-		if(angularDistance(ra,dec,pos.rAsc,pos.dec)<numOfSigma*posSigma) //and abs(time - timeMean) < numOfSigma*timeSigma)
+		if(abs(time - timeMean) < numOfSigma*timeSigma)
 		{
-			output->emplace_back(MCEvent{energy, pos.rAsc, pos.dec, time, 'B'});
+			double energy   = energyDist->GetRandom();
+				double altitude = altDist->GetRandom();
+				double azimuth  = 360*rnd.Rndm();
+		
+				eqCoor pos 		= horToEq(horCoor(altitude,azimuth,uTime+time));
+		
+				//saving only events close to signal
+				if(angularDistance(ra,dec,pos.rAsc,pos.dec)<numOfSigma*posSigma)
+				{
+					output->emplace_back(MCEvent{energy, pos.rAsc, pos.dec, time, 'B'});
+				}
 		}
 	}
 

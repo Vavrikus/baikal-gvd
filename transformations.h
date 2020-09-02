@@ -22,6 +22,9 @@ extern constexpr double lonA = PI * 6.167 / 180.0;
 inline double radToDeg(const double& r) {return 180*r/PI;} //convert radians to degrees
 inline double degToRad(const double& d) {return PI*d/180;} //convert degrees to radians
 
+//spherical cap angle in steradians
+inline double capAngle(const double& sideAngle) {return 2*PI*(1-std::cos(sideAngle));}
+
 //distance between two points with given equatorial coordinates (degrees)
 double angularDistance(const double& ra, const double& dec, const double& ra2, const double& dec2)
 {
