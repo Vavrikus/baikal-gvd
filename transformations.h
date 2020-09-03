@@ -39,6 +39,31 @@ double angularDistance(const double& ra, const double& dec, const double& ra2, c
     return radToDeg(v1.Angle(v2));
 }
 
+//function for splitting string by whitespace into substrings 
+std::vector<std::string> split(const std::string& str, char separator = ' ')
+{
+    std::vector<std::string> output;
+    int currentPos = 0;
+    int lastSpacePos = -1;
+
+    for (char c : str)
+    {
+        if (c == separator) 
+        {
+            std::string substr = str.substr(lastSpacePos + 1, currentPos - lastSpacePos - 1);
+            lastSpacePos = currentPos;
+            if (substr != "") output.push_back(substr);
+        }
+
+        currentPos++;
+    }
+
+    std::string substr = str.substr(lastSpacePos + 1, currentPos - lastSpacePos - 1);
+    if (substr != "") output.push_back(substr);
+
+    return output;
+}
+
 //========================== TIME FORMAT CONVERSION ==========================//
 
 //convert UTC time to Unix

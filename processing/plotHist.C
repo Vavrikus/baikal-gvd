@@ -39,40 +39,49 @@ std::vector<double> readData(const char* path)
 	return dataOut;
 }
 
-void plotHist(const char* path)
+//input file paths separated by commas
+void plotHist(std::string paths)
 {
-	std::vector<double> data = readData(path);
-	std::cout << data.size() << '\n';
+	std::vector<std::string> files = split(paths, ',');
 
-	double bins = 1000000;
-	XY extrems = minmax(data);
+	THStack* hs = new THStack("hs","");
+	hs->SetTitle("Cumulative distribution of test statistics;Test statistics;Probability");
 
-	double binWidth = (extrems.y-extrems.x)/bins;
 
-	TH1F* hist = new TH1F("Histogram","Cumulative distribution of test statistics for background",
-						  bins, extrems.x, extrems.y);
+	for(int i = 0; i < files.size(); i++)
+	{
+		std::vector<double> data = readData(files[i].c_str());
+		std::cout << data.size() << " numbers in " << files[i] << '\n';
+	
+		double bins = 1000000;
+		XY extrems = minmax(data);
+	
+		TH1F* hist = new TH1F("Histogram","Cumulative distribution of test statistics for background",
+							  bins, extrems.x, extrems.y);
+	
+		for(double d : data) hist->Fill(d);
+	
+		hist->Scale(1/hist->Integral());
+		hist = (TH1F*)hist->GetCumulative(kFALSE);
+	
+		hist->SetLineColor(i+2);
+		hs->Add(hist);
+	
+		/*
+		TLine* l1 = new TLine(0,0.31731050786291415,5,0.31731050786291415);
+		l1->Draw();
+		TLine* l2 = new TLine(0,0.04550026389635842,7,0.04550026389635842);
+		l2->Draw();
+		TLine* l3 = new TLine(0,0.002699796063260207,7,0.002699796063260207);
+		l3->Draw();
+		TLine* l4 = new TLine(0,0.00006334248366624,7,0.00006334248366624);
+		l4->Draw();
+		TLine* l5 = new TLine(0,5.733031436805369e-7,7,5.733031436805369e-7);
+		l5->Draw();
+		*/
+	}
 
-	for(double d : data) hist->Fill(d);
-
-	hist->Scale(1/hist->Integral());
-	hist = (TH1F*)hist->GetCumulative(kFALSE);
-
-	hist->Draw("hist");
-	hist->SetTitle("Cumulative distribution of test statistics for background;Test statistics;Probability");
-	hist->SetLineColor(kRed);
-
-	/*
-	TLine* l1 = new TLine(0,0.31731050786291415,5,0.31731050786291415);
-	l1->Draw();
-	TLine* l2 = new TLine(0,0.04550026389635842,7,0.04550026389635842);
-	l2->Draw();
-	TLine* l3 = new TLine(0,0.002699796063260207,7,0.002699796063260207);
-	l3->Draw();
-	TLine* l4 = new TLine(0,0.00006334248366624,7,0.00006334248366624);
-	l4->Draw();
-	TLine* l5 = new TLine(0,5.733031436805369e-7,7,5.733031436805369e-7);
-	l5->Draw();
-	*/
+	hs->Draw("nostack");
 
 	gPad->SetLogy();
 }
