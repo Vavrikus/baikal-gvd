@@ -10,6 +10,15 @@
 #include "TTree.h"
 #include "TVirtualFitter.h"
 
+#define PROFILING 0
+#if PROFILING
+	#include "Instrumentor.h"
+	#define PROFILE_SCOPE(name) InstrumentationTimer timer##__LINE__(name)
+	#define PROFILE_FUNCTION() PROFILE_SCOPE(__FUNCSIG__) 
+#else
+	#define PROFILE_SCOPE(name)
+#endif
+
 static std::vector<MCEvent> MCdata;
 static TVirtualFitter* gFitter;
 
@@ -52,6 +61,8 @@ std::vector<MCEvent>* getBackround(double MJDstart, double timeWindow, int numEv
                                    double timeSigma, double ra, double dec, double posSigma, double numOfSigma,
                                    double rate = 0)
 {
+	PROFILE_FUNCTION();
+
 	TRandom2 rnd(0);
 
 	int bEvents = numEvents;
@@ -111,6 +122,8 @@ std::vector<MCEvent>* getBackround(double MJDstart, double timeWindow, int numEv
 std::vector<MCEvent>* getSignalGaus(int eventCount, double ra, double dec, double posSigma,
 									double timeMean, double timeSigma)
 {
+	PROFILE_FUNCTION();
+
 	TRandom2 rnd(0);
 
 	std::vector<MCEvent>* output = new std::vector<MCEvent>;
@@ -159,6 +172,8 @@ std::vector<MCEvent>* getSignalGaus(int eventCount, double ra, double dec, doubl
 std::vector<MCEvent>* getMixed(int numBackround, int numSignal, double MJDstart, double timeWindow, 
 							   double signalMean, double signalSigma, double posSigma, double ra, double dec)
 {
+	PROFILE_FUNCTION();
+
 	std::vector<MCEvent>* mixed  = getBackround(MJDstart, timeWindow, numBackround, signalMean, signalSigma,
 												ra, dec, posSigma, 7);
 	std::vector<MCEvent>* signal = getSignalGaus(numSignal, ra, dec, posSigma, signalMean, signalSigma);
@@ -191,12 +206,16 @@ double backgroundProbability(const MCEvent& ev)
 
 double probability(const MCEvent& ev, double nSignal)
 {
+	PROFILE_FUNCTION();
+
 	double partSignal = nSignal/MCdata.size();
 	return partSignal*signalProbability(ev) + (1-partSignal)*backgroundProbability(ev);
 }
 
 double testStatistic(double bestFit)
 {
+	PROFILE_FUNCTION();
+
 	double lBest = 0;
 
 	for(const MCEvent& ev : MCdata)
@@ -217,6 +236,8 @@ double testStatistic(double bestFit)
 //logLikelihood with output parameter outL and input parameters array par
 void logLikelihood(int& npar, double* gin, double& outL, double* par, int iflag)
 {
+	PROFILE_FUNCTION();
+
 	double& nSignal = par[0]; //creating an alias for par[0]
 
 	outL = 0;
@@ -229,6 +250,8 @@ void logLikelihood(int& npar, double* gin, double& outL, double* par, int iflag)
 
 void SetFitter(int parameters, bool print = true)
 {
+	PROFILE_FUNCTION();
+	
 	gFitter = TVirtualFitter::Fitter(nullptr,parameters); // the second number is number of parameters
 	gFitter->SetFCN(logLikelihood);
 
@@ -242,6 +265,8 @@ void SetFitter(int parameters, bool print = true)
 
 void fit(double& nSignal, double& nSignalSigma, bool print = true)
 {
+	PROFILE_FUNCTION();
+
 	SetFitter(1,print);
 	gFitter->SetParameter(0,"nSignal",nSignal,0.01,0,MCdata.size());
 
@@ -254,30 +279,40 @@ void fit(double& nSignal, double& nSignalSigma, bool print = true)
 // ./testMC outpath backCount signalCount timeWindow timeSigma posSigma (numOfSigma = 7)
 int main(int argc, char** argv)
 {
-	std::string outpath;
-
-	if(argc < 6) std::cerr << "Not enough arguments!\n";
-	else
+#if PROFILING
+	Instrumentor::Get().BeginSession("Session Name");
+#endif
 	{
-		outpath        = argv[1];
-		backCount      = std::stoi(argv[2]);
-		signalCount    = std::stoi(argv[3]);
-		timeWindow 	   = std::stod(argv[4]);
-		sigTimeSigma   = std::stod(argv[5]);
-		sigPosSigma    = std::stod(argv[6]);
+		PROFILE_SCOPE("MAIN");
 
-		if(argc == 7) numOfSigma = std::stoi(argv[7]);
+		std::string outpath;
+
+		if(argc < 6) std::cerr << "Not enough arguments!\n";
+		else
+		{
+			outpath        = argv[1];
+			backCount      = std::stoi(argv[2]);
+			signalCount    = std::stoi(argv[3]);
+			timeWindow 	   = std::stod(argv[4]);
+			sigTimeSigma   = std::stod(argv[5]);
+			sigPosSigma    = std::stod(argv[6]);
+
+			if(argc == 7) numOfSigma = std::stoi(argv[7]);
+		}
+
+		MCdata = *getMixed(backCount,signalCount,sigTimeMean-timeWindow/2,timeWindow,sigTimeMean,sigTimeSigma,sigPosSigma,0,0);
+
+		double nSignal = 0;
+		double nSignalSigma;
+
+		fit(nSignal,nSignalSigma,false);
+
+		std::ofstream outf{outpath, std::ios::app};
+		outf << testStatistic(nSignal) << '\n';
 	}
-
-	MCdata = *getMixed(backCount,signalCount,sigTimeMean-timeWindow/2,timeWindow,sigTimeMean,sigTimeSigma,sigPosSigma,0,0);
-
-	double nSignal = 0;
-	double nSignalSigma;
-
-	fit(nSignal,nSignalSigma,false);
-
-	std::ofstream outf{outpath, std::ios::app};
-	outf << testStatistic(nSignal) << '\n';
+#if PROFILING
+	Instrumentor::Get().EndSession();
+#endif
 
 	return 0;
 }
