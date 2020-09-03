@@ -183,7 +183,7 @@ double signalProbability(const MCEvent& ev)
 double backgroundProbability(const MCEvent& ev)
 {
 	double timeProb     = 1/timeWindow;//(14*sigTimeSigma);
-	double positionProb = 1/4*PI;//(capAngle(7*sigPosSigma));
+	double positionProb = 1/(4*PI);//(capAngle(7*sigPosSigma));
 	double energyProb	= std::pow(ev.energy,-3.7)/eNormBack;
 
 	return timeProb*positionProb*energyProb;

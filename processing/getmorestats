@@ -4,5 +4,5 @@
 
 	for i in $(seq "$1")
 	do
-		time bash getstats 100000 500 0 365.25 1 5
+		time bash getstats 100000 500 00 365.25 1 5
 	done
