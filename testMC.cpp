@@ -10,13 +10,14 @@
 #include "TTree.h"
 #include "TVirtualFitter.h"
 
-#define PROFILING 0
+#define PROFILING 1
 #if PROFILING
 	#include "Instrumentor.h"
 	#define PROFILE_SCOPE(name) InstrumentationTimer timer##__LINE__(name)
 	#define PROFILE_FUNCTION() PROFILE_SCOPE(__FUNCSIG__) 
 #else
 	#define PROFILE_SCOPE(name)
+	#define PROFILE_FUNCTION()
 #endif
 
 static std::vector<MCEvent> MCdata;
