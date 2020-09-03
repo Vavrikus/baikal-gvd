@@ -44,7 +44,7 @@ void plotHist(const char* path)
 	std::vector<double> data = readData(path);
 	std::cout << data.size() << '\n';
 
-	double bins = 400;
+	double bins = 1000000;
 	XY extrems = minmax(data);
 
 	double binWidth = (extrems.y-extrems.x)/bins;
@@ -55,7 +55,7 @@ void plotHist(const char* path)
 	for(double d : data) hist->Fill(d);
 
 	hist->Scale(1/hist->Integral());
-	//hist = (TH1F*)hist->GetCumulative(kFALSE);
+	hist = (TH1F*)hist->GetCumulative(kFALSE);
 
 	hist->Draw("hist");
 	hist->SetTitle("Cumulative distribution of test statistics for background;Test statistics;Probability");
@@ -74,5 +74,5 @@ void plotHist(const char* path)
 	l5->Draw();
 	*/
 
-	//gPad->SetLogy();
+	gPad->SetLogy();
 }
