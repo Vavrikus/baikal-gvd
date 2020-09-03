@@ -14,7 +14,7 @@
 #if PROFILING
 	#include "Instrumentor.h"
 	#define PROFILE_SCOPE(name) InstrumentationTimer timer##__LINE__(name)
-	#define PROFILE_FUNCTION() PROFILE_SCOPE(__FUNCSIG__) 
+	#define PROFILE_FUNCTION() PROFILE_SCOPE(__PRETTY_FUNCTION__) 
 #else
 	#define PROFILE_SCOPE(name)
 	#define PROFILE_FUNCTION()
