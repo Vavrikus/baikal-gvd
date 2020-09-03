@@ -92,7 +92,7 @@ std::vector<MCEvent>* getBackround(double MJDstart, double timeWindow, int numEv
 			eqCoor pos 		= horToEq(horCoor(altitude,azimuth,uTime+time));
 	
 			//saving only events close to signal
-			if(angularDistance(ra,dec,pos.rAsc,pos.dec)<numOfSigma*posSigma)
+			if(true)//angularDistance(ra,dec,pos.rAsc,pos.dec)<numOfSigma*posSigma)
 			{
 				double energy = energyDist->GetRandom();
 				output->emplace_back(MCEvent{energy, pos.rAsc, pos.dec, time, 'B'});
@@ -183,7 +183,7 @@ double signalProbability(const MCEvent& ev)
 double backgroundProbability(const MCEvent& ev)
 {
 	double timeProb     = 1/timeWindow;//(14*sigTimeSigma);
-	double positionProb = 1/(capAngle(7*sigPosSigma));
+	double positionProb = 1/4*PI;//(capAngle(7*sigPosSigma));
 	double energyProb	= std::pow(ev.energy,-3.7)/eNormBack;
 
 	return timeProb*positionProb*energyProb;
