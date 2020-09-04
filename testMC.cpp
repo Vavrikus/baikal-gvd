@@ -20,8 +20,11 @@
 	#define PROFILE_FUNCTION()
 #endif
 
-static std::vector<MCEvent> MCdata;
+static std::vector<MCEvent> fitData;
 static TVirtualFitter* gFitter;
+
+//number of simulated fits
+static double numOfSimulations = 10000;
 
 //generated events
 static int backCount;
@@ -36,9 +39,6 @@ static double sigPosSigma;
 
 //chosen time window
 static double timeWindow;
-
-//sigma cut
-static double numOfSigma   = 7;
 
 //energy window
 static double minEnergy    = 1;
@@ -59,8 +59,7 @@ void operator+=(std::vector<T>& v1, const std::vector<T>& v2)
 //MJDstart is modified julian date
 //either generate number of events from rate or take them as parameter
 std::vector<MCEvent>* getBackround(double MJDstart, double timeWindow, int numEvents, double timeMean,
-                                   double timeSigma, double ra, double dec, double posSigma, double numOfSigma,
-                                   double rate = 0)
+                                   double timeSigma, double ra, double dec, double posSigma, double rate = 0)
 {
 	PROFILE_FUNCTION();
 
@@ -110,21 +109,13 @@ std::vector<MCEvent>* getBackround(double MJDstart, double timeWindow, int numEv
 		PROFILE_SCOPE("For loop");
 
 		double time = UnixToMJD(uTime + 86400*timeWindow*rnd.Rndm());
+		double energy = energyDist->GetRandom();
+		double altitude = altDist->GetRandom();
+		double azimuth  = 360*rnd.Rndm();
 
-		if(true)//abs(time - timeMean) < numOfSigma*timeSigma)
-		{
-			double altitude = altDist->GetRandom();
-			double azimuth  = 360*rnd.Rndm();
-	
-			eqCoor pos 		= horToEq(horCoor(altitude,azimuth,uTime+time));
-	
-			//saving only events close to signal
-			if(true)//angularDistance(ra,dec,pos.rAsc,pos.dec)<numOfSigma*posSigma)
-			{
-				double energy = energyDist->GetRandom();
-				output->emplace_back(MCEvent{energy, pos.rAsc, pos.dec, time, 'B'});
-			}
-		}
+		eqCoor pos 		= horToEq(horCoor(altitude,azimuth,uTime+time));
+
+		output->emplace_back(MCEvent{energy, pos.rAsc, pos.dec, time, 'B'});
 	}
 
 	delete energyDist;
@@ -190,12 +181,24 @@ std::vector<MCEvent>* getMixed(int numBackround, int numSignal, double MJDstart,
 {
 	PROFILE_FUNCTION();
 
-	std::vector<MCEvent>* mixed  = getBackround(MJDstart, timeWindow, numBackround, signalMean, signalSigma,
-												ra, dec, posSigma, 7);
-	std::vector<MCEvent>* signal = getSignalGaus(numSignal, ra, dec, posSigma, signalMean, signalSigma);
+	std::vector<MCEvent>* background  = getBackround(MJDstart, timeWindow, numBackround, signalMean, signalSigma,
+												ra, dec, posSigma);
+	std::vector<MCEvent>* signal 	  = getSignalGaus(numSignal, ra, dec, posSigma, signalMean, signalSigma);
 
-	*mixed += *signal;
-	//std::sort(mixed->begin(), mixed->end(), isSooner);
+	std::vector<MCEvent>* mixed = new std::vector<MCEvent>();
+	mixed->reserve(numBackround+numSignal);
+
+	for (int i = 0; i < numBackround+numSignal; ++i)
+	{
+		int simulID = i/(backCount+signalCount);
+		int eventID = i%(backCount+signalCount);
+
+		if(eventID < backCount)	mixed->push_back((*background)[simulID*backCount + eventID]);
+		else mixed->push_back((*signal)[simulID*signalCount - backCount + eventID]);
+	}
+	
+	delete background;
+	delete signal;
 
 	return mixed;
 }
@@ -222,9 +225,7 @@ double backgroundProbability(const MCEvent& ev)
 
 double probability(const MCEvent& ev, double nSignal)
 {
-	PROFILE_FUNCTION();
-
-	double partSignal = nSignal/MCdata.size();
+	double partSignal = nSignal/fitData.size();
 	return partSignal*signalProbability(ev) + (1-partSignal)*backgroundProbability(ev);
 }
 
@@ -234,14 +235,14 @@ double testStatistic(double bestFit)
 
 	double lBest = 0;
 
-	for(const MCEvent& ev : MCdata)
+	for(const MCEvent& ev : fitData)
 	{
 		lBest += std::log(probability(ev,bestFit));
 	}
 
 	double lNone = 0;
 
-	for(const MCEvent& ev : MCdata)
+	for(const MCEvent& ev : fitData)
 	{
 		lNone += std::log(backgroundProbability(ev));
 	}
@@ -252,13 +253,11 @@ double testStatistic(double bestFit)
 //logLikelihood with output parameter outL and input parameters array par
 void logLikelihood(int& npar, double* gin, double& outL, double* par, int iflag)
 {
-	PROFILE_FUNCTION();
-
 	double& nSignal = par[0]; //creating an alias for par[0]
 
 	outL = 0;
 
-	for(const MCEvent& ev : MCdata)
+	for(const MCEvent& ev : fitData)
 	{
 		outL -= std::log(probability(ev,nSignal));
 	}
@@ -279,20 +278,19 @@ void SetFitter(int parameters, bool print = true)
 	}
 }
 
-void fit(double& nSignal, double& nSignalSigma, bool print = true)
+void fit(double& nSignal, double& nSignalSigma)
 {
 	PROFILE_FUNCTION();
 
-	SetFitter(1,print);
-	gFitter->SetParameter(0,"nSignal",nSignal,0.01,0,MCdata.size());
+	gFitter->SetParameter(0,"nSignal",nSignal,0.1,0,backCount+signalCount);
 
-	double arglist[10] = {500,0.01}; //max iterations, step size
+	double arglist[10] = {500,0.1}; //max iterations, step size
 	gFitter->ExecuteCommand("MIGRAD",arglist,2); //last one num of prints
 	nSignal      = gFitter->GetParameter(0);
 	nSignalSigma = gFitter->GetParError(0);
 }
 
-// ./testMC outpath backCount signalCount timeWindow timeSigma posSigma (numOfSigma = 7)
+// ./testMC outpath backCount signalCount timeWindow timeSigma posSigma (numOfSimulations = 10000)
 int main(int argc, char** argv)
 {
 #if PROFILING
@@ -313,18 +311,32 @@ int main(int argc, char** argv)
 			sigTimeSigma   = std::stod(argv[5]);
 			sigPosSigma    = std::stod(argv[6]);
 
-			if(argc == 7) numOfSigma = std::stoi(argv[7]);
+			//if(argc == 7) numOfSimulations = std::stoi(argv[7]);
 		}
+		
+		std::ofstream outf{outpath, std::ios::app};
 
-		MCdata = *getMixed(backCount,signalCount,sigTimeMean-timeWindow/2,timeWindow,sigTimeMean,sigTimeSigma,sigPosSigma,0,0);
-
-		double nSignal = 0;
+		double nSignal;
 		double nSignalSigma;
 
-		fit(nSignal,nSignalSigma,false);
+		SetFitter(1,false);
 
-		std::ofstream outf{outpath, std::ios::app};
-		outf << testStatistic(nSignal) << '\n';
+		std::vector<MCEvent> allData = *getMixed(backCount*numOfSimulations,signalCount*numOfSimulations,sigTimeMean-timeWindow/2,
+						   						 timeWindow,sigTimeMean,sigTimeSigma,sigPosSigma,0,0);
+
+		for(int i = 0; i < numOfSimulations; i++)
+		{
+			nSignal = 0;
+
+			std::vector<MCEvent>::const_iterator first = allData.begin() + i*(backCount+signalCount);
+			std::vector<MCEvent>::const_iterator last  = allData.begin() + (i+1)*(backCount+signalCount);
+
+			fitData = std::vector<MCEvent>(first, last);
+
+			fit(nSignal,nSignalSigma);
+
+			outf << testStatistic(nSignal) << '\n';
+		}
 	}
 #if PROFILING
 	Instrumentor::Get().EndSession();
