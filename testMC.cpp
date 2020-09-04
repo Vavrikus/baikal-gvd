@@ -10,7 +10,7 @@
 #include "TTree.h"
 #include "TVirtualFitter.h"
 
-#define PROFILING 1
+#define PROFILING 0
 #if PROFILING
 	#include "Instrumentor.h"
 	#define PROFILE_SCOPE(name) InstrumentationTimer timer##__LINE__(name)
