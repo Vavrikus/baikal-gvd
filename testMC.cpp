@@ -78,22 +78,37 @@ std::vector<MCEvent>* getBackround(double MJDstart, double timeWindow, int numEv
 	double minEnergy = 1;
 	double maxEnergy = 10000000;
 
+	#if PROFILING
+		InstrumentationTimer t("Setting up energy distribution");
+	#endif
 	//energy distrubution for atmospheric neutrinos
 	TF1* energyDist = new TF1("energyDist", "[0]*std::pow(x,[1])", minEnergy, maxEnergy);
-
-	//altitude distribution for uniform position distribution
-	TF1* altDist = new TF1("altDist", "cos(x*3.14159265358979323/180)", -90, 90);
 
 	double power = -3.7; //-3.7 for atmospheric neutrinos
 	energyDist->SetParameter(1,power);
 
+	#if PROFILING
+		t.Stop();
+	#endif
+
+	#if PROFILING
+		InstrumentationTimer t2("Setting up altitude distribution");
+	#endif
+	//altitude distribution for uniform position distribution
+	TF1* altDist = new TF1("altDist", "cos(x*3.14159265358979323/180)", -90, 90);
+
 	//normalization (unnecesary, only for plotting)
 	double area  = powerLawArea(power, minEnergy, maxEnergy);
 	energyDist->SetParameter(0,1/area);
+	#if PROFILING
+		t2.Stop();
+	#endif
 
 	//generating random values
 	for (int i = 0; i < bEvents; ++i)
 	{
+		PROFILE_SCOPE("For loop");
+
 		double time = UnixToMJD(uTime + 86400*timeWindow*rnd.Rndm());
 
 		if(true)//abs(time - timeMean) < numOfSigma*timeSigma)
