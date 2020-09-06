@@ -6,7 +6,7 @@
 
 #include "TF1.h"
 #include "TFile.h"
-#include "TRandom2.h"
+#include "TRandom3.h"
 #include "TTree.h"
 #include "TVirtualFitter.h"
 
@@ -63,7 +63,7 @@ std::vector<MCEvent>* getBackround(double MJDstart, double timeWindow, int numEv
 {
 	PROFILE_FUNCTION();
 
-	TRandom2 rnd(0);
+	TRandom3 rnd(0);
 
 	int bEvents = numEvents;
 
@@ -131,7 +131,7 @@ std::vector<MCEvent>* getSignalGaus(int eventCount, double ra, double dec, doubl
 {
 	PROFILE_FUNCTION();
 
-	TRandom2 rnd(0);
+	TRandom3 rnd(0);
 
 	std::vector<MCEvent>* output = new std::vector<MCEvent>;
 	output->reserve(eventCount);
