@@ -56,7 +56,7 @@ void plotHist(std::string paths)
 		double bins = 1000000;
 		XY extrems = minmax(data);
 	
-		TH1F* hist = new TH1F("Histogram","Cumulative distribution of test statistics for background",
+		TH1F* hist = new TH1F(std::to_string(i).c_str(),"Cumulative distribution of test statistics for background",
 							  bins, extrems.x, extrems.y);
 	
 		for(double d : data) hist->Fill(d);
