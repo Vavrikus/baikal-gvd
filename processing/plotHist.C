@@ -53,7 +53,7 @@ void plotHist(std::string paths)
 		std::vector<double> data = readData(files[i].c_str());
 		std::cout << data.size() << " numbers in " << files[i] << '\n';
 	
-		double bins = 1000000;
+		double bins = 1e+5;
 		XY extrems = minmax(data);
 	
 		TH1F* hist = new TH1F(std::to_string(i).c_str(),"Cumulative distribution of test statistics for background",
@@ -65,23 +65,23 @@ void plotHist(std::string paths)
 		hist = (TH1F*)hist->GetCumulative(kFALSE);
 	
 		hist->SetLineColor(i+2);
-		hs->Add(hist);
-	
-		/*
-		TLine* l1 = new TLine(0,0.31731050786291415,5,0.31731050786291415);
-		l1->Draw();
-		TLine* l2 = new TLine(0,0.04550026389635842,7,0.04550026389635842);
-		l2->Draw();
-		TLine* l3 = new TLine(0,0.002699796063260207,7,0.002699796063260207);
-		l3->Draw();
-		TLine* l4 = new TLine(0,0.00006334248366624,7,0.00006334248366624);
-		l4->Draw();
-		TLine* l5 = new TLine(0,5.733031436805369e-7,7,5.733031436805369e-7);
-		l5->Draw();
-		*/
+		hs->Add(hist);		
 	}
 
 	hs->Draw("nostack");
+
+	double xMax = 20;
+
+	/*TLine* l1 = new TLine(0,0.31731050786291415,xMax,0.31731050786291415);
+	l1->Draw();
+	TLine* l2 = new TLine(0,0.04550026389635842,xMax,0.04550026389635842);
+	l2->Draw();
+	TLine* l3 = new TLine(0,0.002699796063260207,xMax,0.002699796063260207);
+	l3->Draw();
+	TLine* l4 = new TLine(0,0.00006334248366624,xMax,0.00006334248366624);
+	l4->Draw();
+	TLine* l5 = new TLine(0,5.733031436805369e-7,xMax,5.733031436805369e-7);
+	l5->Draw();*/
 
 	gPad->SetLogy();
 }
