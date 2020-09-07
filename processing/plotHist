@@ -1,0 +1,12 @@
+#!/bin/bash
+
+PARAMS=""
+
+for par in "$@"
+do
+	PARAMS="$PARAMS,$par"
+done
+
+PARAMS=${PARAMS#,}
+
+root "plotHist.C(\"$PARAMS\")"
