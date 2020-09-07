@@ -56,16 +56,18 @@ void plotHist(std::string paths)
 		double bins = 1e+5;
 		XY extrems = minmax(data);
 	
-		TH1F* hist = new TH1F(std::to_string(i).c_str(),"Cumulative distribution of test statistics for background",
+		TH1D* hist = new TH1D(std::to_string(i).c_str(),"Cumulative distribution of test statistics for background",
 							  bins, extrems.x, extrems.y);
 	
 		for(double d : data) hist->Fill(d);
 	
 		hist->Scale(1/hist->Integral());
-		hist = (TH1F*)hist->GetCumulative(kFALSE);
+		TH1D* hist2 = (TH1D*)hist->GetCumulative(kFALSE);
+
+		delete hist;
 	
-		hist->SetLineColor(i+2);
-		hs->Add(hist);		
+		hist2->SetLineColor(i+2);
+		hs->Add(hist2);		
 	}
 
 	hs->Draw("nostack");
