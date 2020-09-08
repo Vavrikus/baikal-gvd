@@ -48,7 +48,7 @@ void plotHist(std::string paths)
 	bool cumulative = std::stoi(files[0]);
 	bool drawSigmas = std::stoi(files[1]);
 
-	//creating title
+	//creating title TIMES SMALLER THAN 0.5 SECONDS WILL BE ROUNDED TO ZERO
 	std::string title;
 	std::string TimeSigma;
 	if(cumulative) title = "Cumulative distribution of test statistics for background;Test statistics;Probability";
@@ -206,20 +206,20 @@ void plotHist(std::string paths)
 			double sigma3 = 0;
 			double sigma5 = 0;
 
-			switch(timeSigma)
+			if (TimeSigma == "1 d")
 			{
-				case "1 d":
-					sigma3 = 3.37;
-					sigma5 = 15.12;
-					break;
-				case "15 min":
-					sigma3 = 0;
-					sigma5 = 0;
-					break;
-				case "10 s":
-					sigma3 = 0;
-					sigma5 = 0;
-					break;
+				sigma3 = 3.37;
+				sigma5 = 15.12;
+			}
+			else if (TimeSigma == "15 min")
+			{
+				sigma3 = 0;
+				sigma5 = 0;
+			}
+			else if (TimeSigma == "10 s")
+			{
+				sigma3 = 0;
+				sigma5 = 0;
 			}
 
 			double xOffset = 0.5;
