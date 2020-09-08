@@ -1,4 +1,6 @@
 *.exe
+*.sublime-project
+*.sublime-workspace
 /processing/output/
 /tests/
 /reference_files/
