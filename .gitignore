@@ -1,0 +1,7 @@
+*.exe
+/processing/output/
+/tests/
+/reference_files/
+/old/
+/experiments_data/
+pulldata

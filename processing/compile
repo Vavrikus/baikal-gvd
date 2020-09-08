@@ -1,5 +1,5 @@
 #!/bin/bash
-#g++ -O3 -std=c++2a -o MCevents ../MCevents.C `root-config --cflags --libs`
-#g++ -O3 -std=c++2a -pthread -o findSignal ../findSignal.C `root-config --cflags --libs`
+#g++ -O3 -std=c++2a -o MCevents.exe ../MCevents.C `root-config --cflags --libs`
+#g++ -O3 -std=c++2a -pthread -o findSignal.exe ../findSignal.C `root-config --cflags --libs`
 
-g++ -O3 -std=c++2a -o testMC ../testMC.cpp `root-config --cflags --libs`
+g++ -O3 -std=c++2a -o testMC.exe ../testMC.cpp `root-config --cflags --libs`
