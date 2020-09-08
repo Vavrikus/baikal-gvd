@@ -1,8 +1,0 @@
-	#!/bin/bash
-
-	[ -z $1 ] && echo "1 info missing" && exit
-
-	for i in $(seq "$1")
-	do
-		time bash getstats 100000 500 00 365.25 1 5
-	done
