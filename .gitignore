@@ -1,4 +1,5 @@
 *.exe
+*.png
 *.sublime-project
 *.sublime-workspace
 /processing/output/

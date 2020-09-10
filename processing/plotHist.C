@@ -81,7 +81,7 @@ void plotHist(std::string paths)
 		title = "Distribution of test statistics with time sigma " + TimeSigma + ";Test statistics;Probability density";
 	}
 
-	TCanvas* c = new TCanvas();
+	TCanvas* c = new TCanvas("c","Graph",750,480);
 
 	THStack* hs = new THStack("hs","");
 	hs->SetTitle(title.c_str());
@@ -214,12 +214,12 @@ void plotHist(std::string paths)
 			else if (TimeSigma == "15 min")
 			{
 				sigma3 = 0;
-				sigma5 = 0;
+				sigma5 = 7.89;
 			}
 			else if (TimeSigma == "10 s")
 			{
-				sigma3 = 0;
-				sigma5 = 0;
+				sigma3 = -100;
+				sigma5 = 2.33;
 			}
 
 			double xOffset = 0.5;
