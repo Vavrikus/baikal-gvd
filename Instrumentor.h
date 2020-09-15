@@ -14,7 +14,7 @@
 //
 #pragma once
 
-#if PROFILING
+#if PROFILLING
 
 #define PROFILE_SCOPE(name) InstrumentationTimer timer##__LINE__(name)
 #define PROFILE_FUNCTION() PROFILE_SCOPE(__PRETTY_FUNCTION__) 

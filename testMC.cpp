@@ -11,7 +11,7 @@
 #include "TTree.h"
 #include "TVirtualFitter.h"
 
-#define PROFILING 0
+#define PROFILLING 0
 
 static std::vector<MCEvent> fitData;
 static TVirtualFitter* gFitter;
