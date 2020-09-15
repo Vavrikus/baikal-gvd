@@ -1,5 +1,13 @@
 #include "transformations.h"
 
+#include "TFile.h"
+#include "TTree.h"
+#include "TTimeStamp.h"
+#include "TRandom2.h"
+
+#include <iostream>
+#include <fstream>
+
 //returns largest element in int array
 double maxElement(const double* arr, const int& size)
 {
@@ -546,7 +554,7 @@ int coincidence()
 {
     std::vector<IceCubeEvent> iceEv = readIceCube("experiments_data/catalog_of_alerts.txt");
     std::vector<AntaresEvent> antEv = readAntares("experiments_data/antares_events.txt");
-    std::vector<BaikalEvent>  baiEv = readBaikal("experiments_data/filteredCascades_y18c-1.root");
+    std::vector<BaikalEvent>  baiEv = readBaikal("experiments_data/filteredCascades_y16c0.root");
 
     std::vector<IceCubeEvent2> ice2Ev = readIceCube2("experiments_data/IceCube_data/events_IC40.txt");
 
@@ -558,9 +566,9 @@ int coincidence()
 
     std::vector<IceCubeEvent> iceEv2 = readIceCube3("experiments_data/events.csv");
 
-    randomCoincidences({baiEv.begin(), baiEv.end()}, {iceEv2.begin(),iceEv2.end()}, 1, 20, 10000, 50, 2);
+    randomCoincidences({baiEv.begin(), baiEv.end()}, {antEv.begin(),antEv.end()}, 1, 20, 1000000, 50, 2);
 
-    std::vector<Coincidence> coincidences = findCoincidences({baiEv.begin(), baiEv.end()}, {iceEv2.begin(),iceEv2.end()}, 1, 20);
+    std::vector<Coincidence> coincidences = findCoincidences({baiEv.begin(), baiEv.end()}, {antEv.begin(),antEv.end()}, 1, 20);
 
     for(auto ev : coincidences) std::cout << ev << '\n';
 
@@ -611,3 +619,8 @@ int coincidence()
 
         gBai->SetPoint(gBai->GetN(),baiCoor.x, baiCoor.y);
     }*/
+
+int main()
+{
+    return coincidence();
+}
