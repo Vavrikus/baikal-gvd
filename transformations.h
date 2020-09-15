@@ -88,7 +88,7 @@ double UTCtoUnix(const int& year, const int& month, const int& day, const int& h
 }
 
 //convert unix time to modified julian date
-inline double UnixToMJD(const double& unix) {return unix/86400 + 40587;}
+inline double UnixToMJD(const double& unixTime) {return unixTime/86400 + 40587;}
 
 //convert modified julian date to unix time
 inline double MJDtoUnix(const double& mjd) {return (mjd - 40587) * 86400;}

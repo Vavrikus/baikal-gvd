@@ -1,6 +1,7 @@
 #include "MCevents.h"
 #include "threading.h"
 #include "transformations.h"
+#include "Instrumentor.h"
 
 #include <fstream>
 
@@ -11,14 +12,6 @@
 #include "TVirtualFitter.h"
 
 #define PROFILING 0
-#if PROFILING
-	#include "Instrumentor.h"
-	#define PROFILE_SCOPE(name) InstrumentationTimer timer##__LINE__(name)
-	#define PROFILE_FUNCTION() PROFILE_SCOPE(__PRETTY_FUNCTION__) 
-#else
-	#define PROFILE_SCOPE(name)
-	#define PROFILE_FUNCTION()
-#endif
 
 static std::vector<MCEvent> fitData;
 static TVirtualFitter* gFitter;

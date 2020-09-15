@@ -14,6 +14,11 @@
 //
 #pragma once
 
+#if PROFILING
+
+#define PROFILE_SCOPE(name) InstrumentationTimer timer##__LINE__(name)
+#define PROFILE_FUNCTION() PROFILE_SCOPE(__PRETTY_FUNCTION__) 
+
 #include <string>
 #include <chrono>
 #include <algorithm>
@@ -133,3 +138,8 @@ private:
     std::chrono::time_point<std::chrono::high_resolution_clock> m_StartTimepoint;
     bool m_Stopped;
 };
+
+#else
+    #define PROFILE_SCOPE(name)
+    #define PROFILE_FUNCTION()
+#endif //PROFILING
