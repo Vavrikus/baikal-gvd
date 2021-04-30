@@ -71,8 +71,8 @@ double UTCtoUnix(const int& year, const int& month, const int& day, const int& h
                   const int& minutes, const double& seconds)
 {
     int leapYears = std::floor((year - 1969) / 4);
-    leapYears += std::floor((year - 2000) / 100);
-    leapYears -= std::floor((year - 2000) / 400);
+    leapYears -= std::floor((year - 2000) / 100);
+    leapYears += std::floor((year - 2000) / 400);
 
     int monthDays = std::ceil((month - 1) * 30.5);
 
