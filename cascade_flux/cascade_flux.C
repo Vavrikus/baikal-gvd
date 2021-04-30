@@ -14,6 +14,8 @@
 #include <fstream>
 #include <map>
 
+using namespace std;
+
 // std::vector<double> stringXPositions = {5.22,52.13,57.54,25.17,-29.84,-53.6,-42.32,0};
 // std::vector<double> stringYPositions = {62.32,37.15,-13.92,-52.01,-52.36,-7.49,42.74,0};
 
@@ -82,7 +84,7 @@ bool IsLEDMatrixRun(int year, int cluster, int run)
 	return isLEDMatrixRun;
 }
 
-int cascade_flux(int year, int cluster = -1)
+int cascade_flux(bool val = false, int year = -1, int cluster = -1)
 {
 	TChain reconstructedCascades("Tree/t_RecCasc");
 
@@ -96,7 +98,7 @@ int cascade_flux(int year, int cluster = -1)
 	int endSeason = year!=-1?year+1:20+1;
 
 	//path to data folder
-	const char* env_p = "/home/vavrik/work/data";
+	const char* env_p = val?"/home/vavrik/bajkal/recoCascades/v1.2":"/home/vavrik/work/data";
 
 	for (int j = startSeason; j < endSeason; j++)
 	{
@@ -219,6 +221,9 @@ int cascade_flux(int year, int cluster = -1)
 		//key for histogram identification
 		TString hist_key = to_string(clusterID)+to_string(seasonID);
 
+		//event before 01/01/2016 warning
+		if(eventTime->GetSec() < 1451606400) cout << "Event " << eventID << " has low eventTime: " << eventTime;
+
 		//if histogram with given key does not exist, create one, fill histogram
 		if(flux_hist.find(hist_key)!=flux_hist.end())
 		{
@@ -237,7 +242,7 @@ int cascade_flux(int year, int cluster = -1)
 		}
 	}
 
-	DrawResults();
+	if(!val) DrawResults();
 	SaveResults(year,cluster);
 
 	cout << nProcessedEvents << endl;
@@ -246,5 +251,22 @@ int cascade_flux(int year, int cluster = -1)
 	filteredCascades->Write();
 	newFile->Close();
 
+	return 0;
+}
+
+int main(int argc, char** argv) 
+{
+	int val, year, cluster;
+
+	if(argc < 3) cluster = -1;
+	else cluster = stoi(argv[3]);
+
+	if(argc < 2) year = -1;
+	else year = stoi(argv[2]);
+	
+	if(argc < 1) val = 0;
+	else val = stoi(argv[1]);
+
+	cascade_flux(val,year,cluster);
 	return 0;
 }
