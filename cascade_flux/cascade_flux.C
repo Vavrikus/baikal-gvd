@@ -10,6 +10,7 @@
 #include "TTimeStamp.h"
 #include "TGraph.h"
 #include "THStack.h"
+#include "TStyle.h"
 
 #include <iostream>
 #include <fstream>
@@ -26,7 +27,7 @@ double yPos[40] = {-211.35,-235.88,-285.45,-325.83,-319.82,-281.63,-231.37,-270.
 
 vector<vector<vector<int>>> ledMatrixRuns = {{{2,3,4,5,6,7,8,9,10,11,118,119,177,193,194,200,201,228,229,230,231,232,233,234,235,236,237,560,598}},{{},{}},{{7,117,412,429,443,459,474,490,505,520,548,564,579,595},{1,2,3,6,7,37,134,428,450,464,480,495,510,527,540,568,584,599,615,631,647,668},{35,36,117,120,131,151,412,429,443,459,474,489,504,519,520,547,575,591,607,623,644}},{{17,18,37,38,39,40,44,61,77,93,97,111,126,142,158,174,190,203,218,232,247,264,277,292,362,377,392,407,422,437,452,467,484,536,551,566,583,596,611,628,644,661,676,677,693},{8,41,54,56,60,61,77,92,107,123,138,154,169,184,201,215,231,245,260,276,306,375,391,406,421,436,451,466,481,498,553,571,586,603,616,631,648,663,679,694,709},{8,9,10,24,80,93,109,124,139,155,170,185,201,216,233,247,262,276,291,329,330,331,337,406,422,437,453,468,483,498,513,530,594,595,596,597,611,612,629,642,657,674,689,705,720,735},{13,23,36,51,67,82,100,116,131,146,162,179,193,208,222,237,251,268,283,350,367},{13,23,34,50,67,82,86,88,89,90,91,92,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,112,113,114,116,117,118,120,121,122,123,124,129,130,132,137,147,163,180,193,208,222,237,238,253,265,279,363,379}},{{3,19,32,42,51,52,62,71,82,92,102,122,145,156,165,180},{12,14,24,33,35,42,51,60,69,83,90,111,134,145,146,147,155,156,157,158,159,160,162,164},{9,13,14,17,132,143,153,164,165,167,169,172},{1,15,17,21,26,36,46,58,67,76,86,94,103,112,114},{2,12,17,19,23,24,26,36,44,55,63,73,82,89,98,106,117,131,143,151,160,166,168,175},{18,20,25,31,41,51,62,71,90,110,118,128,130,143,145,154,157,163,166,173,178,185,195,220,232,241,250,260,282,296,301,312,326,336,346,356,367,384,394},{7,10,12,16,17,22,30,40,49,58,67,76,84,93,102,105,113,115,129,131,143,144,149,152,159,165,169,174,177,207,219,228,237,245,254,264,277,281,290,301}}};
 
-int unix1995 = 788918400; 
+int unix1995 = 788918400;
 
 map<TString,TH1F*> flux_hist;
 map<TString,THStack*> flux_stack;
@@ -138,7 +139,7 @@ std::ostream& operator<<(std::ostream& stream, const Event& ev)
     return stream;
 }
 
-void DrawResults(bool val)
+void DrawResults(int val)
 {
 	for(auto const& x : flux_hist)
 	{
@@ -171,11 +172,11 @@ void DrawResults(bool val)
 	for(auto const& x : flux_stack)
 	{
 		flux_canv[x.first] = new TCanvas(x.first,"CascadeFlux",800,600);
-		if(!val) x.second->Draw("nostack");
+		if(val!=1) x.second->Draw("nostack");
 
 		x.second->GetXaxis()->SetTimeDisplay(1);
 		x.second->GetXaxis()->SetTimeFormat("%m");
-		if(!val) x.second->Draw("nostack");
+		if(val!=1) x.second->Draw("nostack");
   		gPad->BuildLegend(0.75,0.75,0.95,0.95,"");	
 	}
 }
@@ -281,24 +282,27 @@ void QuickSort(vector<Event>& arr, int high = -1, int low = 0)
 //writes warning if two cascades are separated by smaller than selected amount of time
 void WarnIfCloser(const vector<Event>& arr, long int minSec)
 {
-	long int previousTime = arr[0].m_eventTime.GetSec();
-
-	for(int i = 1; i < arr.size(); i++)
+	if(arr.size() > 0)
 	{
-		if(arr[i].m_eventTime.GetSec() - previousTime < minSec)
+		long int previousTime = arr[0].m_eventTime.GetSec();
+
+		for(int i = 1; i < arr.size(); i++)
 		{
-			cout << "\nEvents with time difference " << arr[i].m_eventTime.GetSec() - previousTime;
-			cout << " seconds (smaller than " << minSec << "):\n\n";
-			cout << arr[i-1] << "\n\n" << arr[i] << "\n";
+			if(arr[i].m_eventTime.GetSec() - previousTime < minSec)
+			{
+				cout << "\nEvents with time difference " << arr[i].m_eventTime.GetSec() - previousTime;
+				cout << " seconds (smaller than " << minSec << "):\n\n";
+				cout << arr[i-1] << "\n\n" << arr[i] << "\n";
 
-			nCoincidences++;
+				nCoincidences++;
+			}
+
+			previousTime = arr[i].m_eventTime.GetSec();
 		}
-
-		previousTime = arr[i].m_eventTime.GetSec();
 	}
 }
 
-int cascade_flux(bool val = false, int year = -1, int cluster = -1)
+int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 {
 	TChain reconstructedCascades("Tree/t_RecCasc");
 
@@ -312,7 +316,7 @@ int cascade_flux(bool val = false, int year = -1, int cluster = -1)
 	int endSeason = year!=-1?year+1:20+1;
 
 	//path to data folder
-	const char* env_p = val?"/home/vavrik/bajkal/recoCascades/v1.2":"/home/vavrik/work/data";
+	const char* env_p = val==1?"/home/vavrik/bajkal/recoCascades/v1.2":"/home/vavrik/work/data";
 
 	for (int j = startSeason; j < endSeason; j++)
 	{
@@ -486,15 +490,14 @@ int main(int argc, char** argv)
 {
 	int val, year, cluster;
 
-	if(argc < 3) cluster = -1;
+	if(argc < 4) cluster = -1;
 	else cluster = stoi(argv[3]);
 
-	if(argc < 2) year = -1;
+	if(argc < 3) year = -1;
 	else year = stoi(argv[2]);
 	
-	if(argc < 1) val = 0;
+	if(argc < 2) val = 0;
 	else val = stoi(argv[1]);
 
-	cascade_flux(val,year,cluster);
-	return 0;
+	return cascade_flux(val,year,cluster);
 }
