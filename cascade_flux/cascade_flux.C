@@ -44,9 +44,12 @@ struct Event
 {
 	TTimeStamp m_eventTime;
 	int m_eventID, m_runID, m_clusterID, m_seasonID;
+	double m_energy, m_theta, m_phi;
+	TVector3 m_position;
 
-	Event(int evID, TTimeStamp* evTime, int sID, int cID, int rID)
-		: m_eventID(evID), m_eventTime(*evTime), m_seasonID(sID), m_clusterID(cID), m_runID(rID) {}
+	Event(int evID, TTimeStamp* evTime, int sID, int cID, int rID, double E, double T, double P, TVector3* pos)
+		: m_eventID(evID), m_eventTime(*evTime), m_seasonID(sID), m_clusterID(cID),
+		  m_runID(rID), m_energy(E), m_theta(T), m_phi(P), m_position(*pos) {}
 };
 
 vector<Event> sortedEvents;
@@ -57,6 +60,10 @@ std::ostream& operator<<(std::ostream& stream, const Event& ev)
 {
     stream << "eventID: " << ev.m_eventID << " seasonID: " << ev.m_seasonID << " clusterID: ";
     stream << ev.m_clusterID << " runID: " << ev.m_runID << " eventTime: " << ev.m_eventTime;
+    stream << "\n   E = " << ev.m_energy << " T = " << ev.m_theta/TMath::Pi()*180;
+    stream << " P = " << ev.m_phi/TMath::Pi()*180 << " Position (XYZ): " << ev.m_position.X();
+    stream << " " << ev.m_position.Y() << " " << ev.m_position.Z();
+
 
     return stream;
 }
@@ -76,7 +83,7 @@ void DrawResults()
 		else
 		{
 			TString stack_name = "hs_cascFlux_y"+season(2,2);
-			flux_stack[season] = new THStack(stack_name,"Cascade flux over time; Month; NoE [#]");
+			flux_stack[season] = new THStack(stack_name,"Cascade flux over time; Month; NoE [#] per 7.3 days");
 
 			flux_stack[season]->Add(x.second);
 		}
@@ -85,7 +92,7 @@ void DrawResults()
 		else
 		{
 			TString stack_name = "hs_cascFlux_c"+cluster;
-			flux_stack[cluster] = new THStack(stack_name,"Cascade flux over time; Month; NoE [#]");
+			flux_stack[cluster] = new THStack(stack_name,"Cascade flux over time; Month; NoE [#] per 7.3 days");
 
 			flux_stack[cluster]->Add(x.second);
 		}		
@@ -98,7 +105,8 @@ void DrawResults()
 
 		x.second->GetXaxis()->SetTimeDisplay(1);
 		x.second->GetXaxis()->SetTimeFormat("%m");
-		x.second->Draw("nostack");	
+		x.second->Draw("nostack");
+  		gPad->BuildLegend(0.75,0.75,0.95,0.95,"");	
 	}
 }
 
@@ -368,7 +376,7 @@ int cascade_flux(bool val = false, int year = -1, int cluster = -1)
 		else
 		{
 			TString hist_name = Form("h_cascFlux_y%dc%d",seasonID-2000,clusterID);
-			flux_hist[hist_key] = new TH1F(hist_name,"Cascade flux over time; Month; NoE [#]",50,GetStartTime(2016),GetEndTime(2016));
+			flux_hist[hist_key] = new TH1F(hist_name,hist_name(11,5)+"; Month; NoE [#]",50,GetStartTime(2016),GetEndTime(2016));
 
 			flux_hist[hist_key]->GetXaxis()->SetTimeDisplay(1);
 			flux_hist[hist_key]->GetXaxis()->SetTimeFormat("%m");//("%m/%Y");
@@ -379,7 +387,7 @@ int cascade_flux(bool val = false, int year = -1, int cluster = -1)
 			cout << "Year: " << seasonID << " Cluster: " << clusterID << "\n";
 		}
 
-		sortedEvents.push_back(Event(eventID,eventTime,seasonID,clusterID,runID));
+		sortedEvents.push_back(Event(eventID,eventTime,seasonID,clusterID,runID,energy,theta,phi,position));
 	}
 
 	QuickSort(sortedEvents);
