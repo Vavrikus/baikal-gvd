@@ -40,12 +40,33 @@ TVector3* position = new TVector3();
 TVector3* mcPosition = new TVector3();
 TTimeStamp* eventTime = new TTimeStamp();
 
+struct Event
+{
+	TTimeStamp m_eventTime;
+	int m_eventID, m_runID, m_clusterID, m_seasonID;
+
+	Event(int evID, TTimeStamp* evTime, int sID, int cID, int rID)
+		: m_eventID(evID), m_eventTime(*evTime), m_seasonID(sID), m_clusterID(cID), m_runID(rID) {}
+};
+
+vector<Event> sortedEvents;
+int nCoincidences = 0;
+
+//operator overloading for printing
+std::ostream& operator<<(std::ostream& stream, const Event& ev)
+{
+    stream << "eventID: " << ev.m_eventID << " seasonID: " << ev.m_seasonID << " clusterID: ";
+    stream << ev.m_clusterID << " runID: " << ev.m_runID << " eventTime: " << ev.m_eventTime;
+
+    return stream;
+}
+
 void DrawResults()
 {
 	for(auto const& x : flux_hist)
 	{
-		flux_canv[x.first] = new TCanvas(x.first,"CascadeFlux",800,600);
-		x.second->Draw();
+		// flux_canv[x.first] = new TCanvas(x.first,"CascadeFlux",800,600);
+		// x.second->Draw();
 
 		TString season = x.first(1,4);
 		TString cluster = x.first(0,1);
@@ -141,6 +162,62 @@ int GetStartTime(int season)
 int GetEndTime(int season)
 {
 	return 1491004799+(season-2016)*(365+GetLeapYears(season))*86400-unix1995;
+}
+
+void Swap(vector<Event>& arr, int i, int j)
+{
+	Event temp = arr[i];
+	arr[i] = arr[j];
+	arr[j] = temp;	
+}
+
+//partition for quicksort algorhitm
+int Partition(vector<Event>& arr, int high, int low)
+{
+	int firstBigger = low + 1;
+
+	for (int i = low + 1; i <= high; i++)
+	{
+		if(arr[i].m_eventTime.GetSec() <= arr[low].m_eventTime.GetSec())
+		{
+			Swap(arr,i,firstBigger);
+			firstBigger = firstBigger+1;
+		}
+	}
+
+	Swap(arr,low,firstBigger-1);
+	return firstBigger-1;
+}
+
+void QuickSort(vector<Event>& arr, int high = -1, int low = 0)
+{
+	if(high == -1) high = arr.size()-1;
+	if(high > low)
+	{
+		int pivot = Partition(arr,high,low);
+		QuickSort(arr,high,pivot+1);
+		QuickSort(arr,pivot-1,low);
+	}
+}
+
+//writes warning if two cascades are separated by smaller than selected amount of time
+void WarnIfCloser(const vector<Event>& arr, long int minSec)
+{
+	long int previousTime = arr[0].m_eventTime.GetSec();
+
+	for(int i = 1; i < arr.size(); i++)
+	{
+		if(arr[i].m_eventTime.GetSec() - previousTime < minSec)
+		{
+			cout << "\nEvents with time difference " << arr[i].m_eventTime.GetSec() - previousTime;
+			cout << " seconds (smaller than " << minSec << "):\n   ";
+			cout << arr[i-1] << "\n   " << arr[i] << "\n";
+
+			nCoincidences++;
+		}
+
+		previousTime = arr[i].m_eventTime.GetSec();
+	}
 }
 
 int cascade_flux(bool val = false, int year = -1, int cluster = -1)
@@ -254,6 +331,8 @@ int cascade_flux(bool val = false, int year = -1, int cluster = -1)
 
 	int nProcessedEvents = 0;
 
+	sortedEvents.reserve(nRecCasc);
+
 	for (int i = 0; i < reconstructedCascades.GetEntries(); ++i)
 	{
 		reconstructedCascades.GetEntry(i);
@@ -278,7 +357,7 @@ int cascade_flux(bool val = false, int year = -1, int cluster = -1)
 
 		//event before 01/01/2016 warning
 		if(eventTime->GetSec() < 1451606400)
-			cout << "Event " << eventID << " has low eventTime: " << eventTime << " runID: " << runID << "\n";
+			cout << "Event " << eventID << " has low eventTime: " << eventTime << " seasonID: " << seasonID << " clusterID: " << clusterID << " runID: " << runID << "\n";
 
 		//if histogram with given key does not exist, create one, fill histogram
 		if(flux_hist.find(hist_key)!=flux_hist.end())
@@ -293,13 +372,19 @@ int cascade_flux(bool val = false, int year = -1, int cluster = -1)
 
 			flux_hist[hist_key]->GetXaxis()->SetTimeDisplay(1);
 			flux_hist[hist_key]->GetXaxis()->SetTimeFormat("%m");//("%m/%Y");
-			flux_hist[hist_key]->SetLineColor(seasonID-2010+clusterID);	
+			flux_hist[hist_key]->SetLineColor(seasonID-2014+clusterID);	
 
 			flux_hist[hist_key]->Fill(*eventTime-unix1995-GetStartTime(seasonID)+GetStartTime(2016)); //1970 unix to 1995 unix
 
 			cout << "Year: " << seasonID << " Cluster: " << clusterID << "\n";
 		}
+
+		sortedEvents.push_back(Event(eventID,eventTime,seasonID,clusterID,runID));
 	}
+
+	QuickSort(sortedEvents);
+	WarnIfCloser(sortedEvents,60);
+	cout << "\nnCoincidences: " << nCoincidences << "\n";
 
 	gStyle->SetOptStat(111111);
 
@@ -311,6 +396,8 @@ int cascade_flux(bool val = false, int year = -1, int cluster = -1)
 	TFile *newFile = new TFile(outputFileName,"recreate");
 	filteredCascades->Write();
 	newFile->Close();
+
+	//for(auto ev : sortedEvents) cout << ev << "\n";
 
 	return 0;
 }
