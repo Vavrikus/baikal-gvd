@@ -9,6 +9,7 @@
 #include "TSystem.h"
 #include "TTimeStamp.h"
 #include "TGraph.h"
+#include "THStack.h"
 
 #include <iostream>
 #include <fstream>
@@ -42,33 +43,102 @@ TTimeStamp* eventTime = new TTimeStamp();
 
 struct Event
 {
-	TTimeStamp m_eventTime;
-	int m_eventID, m_runID, m_clusterID, m_seasonID;
-	double m_energy, m_theta, m_phi;
+	int m_seasonID, m_clusterID, m_runID, m_eventID, m_nHits, m_nHitsAfterCaus;
+	int m_nHitsAfterTFilter, m_nStringsAfterCaus, m_nStringsAfterTFilter, m_nTrackHits;
+	double m_energy, m_theta, m_phi, m_mcEnergy, m_mcTheta, m_mcPhi;
+	double m_energySigma, m_thetaSigma, m_phiSigma, m_directionSigma;
+	double m_chi2AfterCaus, m_chi2AfterTFilter, m_cascTime, m_likelihood, m_likelihoodHitOnly;
+	double m_qTotal;
+	double m_rightAscension, m_declination;
 	TVector3 m_position;
-
-	Event(int evID, TTimeStamp* evTime, int sID, int cID, int rID, double E, double T, double P, TVector3* pos)
-		: m_eventID(evID), m_eventTime(*evTime), m_seasonID(sID), m_clusterID(cID),
-		  m_runID(rID), m_energy(E), m_theta(T), m_phi(P), m_position(*pos) {}
+	TVector3 m_mcPosition;
+	TTimeStamp m_eventTime;
 };
 
 vector<Event> sortedEvents;
 int nCoincidences = 0;
 
+//getting data from global variables to objects
+void ParseEvent(Event& ev)
+{	
+	ev.m_seasonID 				= seasonID;
+	ev.m_clusterID 				= clusterID;
+	ev.m_runID 					= runID;
+	ev.m_eventID 				= eventID;
+	ev.m_nHits 					= nHits;
+	ev.m_nHitsAfterCaus 		= nHitsAfterCaus;
+	ev.m_nStringsAfterCaus 		= nStringsAfterCaus;
+	ev.m_chi2AfterCaus 			= chi2AfterCaus;
+	ev.m_nHitsAfterTFilter 		= nHitsAfterTFilter;
+	ev.m_nStringsAfterTFilter 	= nStringsAfterTFilter;
+	ev.m_chi2AfterTFilter 		= chi2AfterTFilter;
+	ev.m_energy 				= energy;
+	ev.m_energySigma 			= energySigma;
+	ev.m_theta 					= theta;
+	ev.m_thetaSigma 			= thetaSigma;
+	ev.m_phi 					= phi;
+	ev.m_phiSigma 				= phiSigma;
+	ev.m_directionSigma 		= directionSigma;
+	ev.m_declination 			= declination;
+	ev.m_rightAscension 		= rightAscension;
+	ev.m_position 				= *position;
+	ev.m_eventTime 				= *eventTime;
+	ev.m_cascTime 				= cascTime;
+	ev.m_mcEnergy 				= mcEnergy;
+	ev.m_mcTheta 				= mcTheta;
+	ev.m_mcPhi 					= mcPhi;
+	ev.m_mcPosition 			= *mcPosition;
+	ev.m_likelihood 			= likelihood;
+	ev.m_likelihoodHitOnly 		= likelihoodHitOnly;
+	ev.m_qTotal 				= qTotal;
+	ev.m_nTrackHits 			= nTrackHits;
+}
+
 //operator overloading for printing
 std::ostream& operator<<(std::ostream& stream, const Event& ev)
 {
-    stream << "eventID: " << ev.m_eventID << " seasonID: " << ev.m_seasonID << " clusterID: ";
-    stream << ev.m_clusterID << " runID: " << ev.m_runID << " eventTime: " << ev.m_eventTime;
-    stream << "\n   E = " << ev.m_energy << " T = " << ev.m_theta/TMath::Pi()*180;
-    stream << " P = " << ev.m_phi/TMath::Pi()*180 << " Position (XYZ): " << ev.m_position.X();
-    stream << " " << ev.m_position.Y() << " " << ev.m_position.Z();
+	stream << "#############################################  EVENT INFO  #############################################\n";
+	stream << "Time Stamp:\n     ";
+	ev.m_eventTime.Print();
 
+	stream << "\nIDs:\n     ";
+    stream << "eventID: " << ev.m_eventID << ", seasonID: " << ev.m_seasonID << ", clusterID: ";
+    stream << ev.m_clusterID << ", runID: " << ev.m_runID << "\n\n";
+
+    stream << "Reconstructed variables:\n     ";
+    stream << "energy = " << ev.m_energy << " TeV, sigma = " << ev.m_energySigma << " TeV\n     ";
+    stream << "theta = " << ev.m_theta/TMath::Pi()*180 << ", sigma = " << ev.m_thetaSigma/TMath::Pi()*180;
+    stream << ", phi = " << ev.m_phi/TMath::Pi()*180 << ", sigma = " << ev.m_phiSigma/TMath::Pi()*180;
+    stream << ", direction sigma = " << ev.m_directionSigma << "\n     ";
+    stream << "Position (XYZ): " << ev.m_position.X();
+    stream << " " << ev.m_position.Y() << " " << ev.m_position.Z() << "\n     ";
+    stream << "right ascension = " << ev.m_rightAscension/TMath::Pi()*180;
+    stream << ", declination = " << ev.m_declination/TMath::Pi()*180 << "\n\n";
+
+    stream << "Reconstruction parameters:\n     ";
+    stream << "nHits = " << ev.m_nHits << ", nTrackHits = " << ev.m_nTrackHits << ", qTotal = ";
+    stream << ev.m_qTotal << "\n     ";
+    stream << "likelihood = " << ev.m_likelihood << ", likelihoodHitOnly = " << ev.m_likelihoodHitOnly;
+    stream << "\n     cascTime = " << ev.m_cascTime << "\n   ";
+
+    stream << "After TFilter:\n     ";
+    stream << "nHits = " << ev.m_nHitsAfterTFilter <<  ", nStrings = " << ev.m_nStringsAfterTFilter;
+    stream << ", chi2 = " << ev.m_chi2AfterTFilter << "\n   ";
+
+    stream << "After Caus:\n     ";
+    stream << "nHits = " << ev.m_nHitsAfterCaus << ", nStrings = " << ev.m_nStringsAfterCaus;
+    stream << ", chi2 = " << ev.m_chi2AfterCaus << "\n\n";
+
+    stream << "MC data:\n     ";
+    stream << "energy = " << ev.m_mcEnergy << " TeV, theta = " << ev.m_mcTheta/TMath::Pi()*180; 
+    stream << ", phi = " << ev.m_mcPhi/TMath::Pi()*180 << "\n     ";
+    stream << "Position (XYZ): " << ev.m_mcPosition.X();
+    stream << " " << ev.m_mcPosition.Y() << " " << ev.m_mcPosition.Z() << "\n";
 
     return stream;
 }
 
-void DrawResults()
+void DrawResults(bool val)
 {
 	for(auto const& x : flux_hist)
 	{
@@ -101,11 +171,11 @@ void DrawResults()
 	for(auto const& x : flux_stack)
 	{
 		flux_canv[x.first] = new TCanvas(x.first,"CascadeFlux",800,600);
-		x.second->Draw("nostack");
+		if(!val) x.second->Draw("nostack");
 
 		x.second->GetXaxis()->SetTimeDisplay(1);
 		x.second->GetXaxis()->SetTimeFormat("%m");
-		x.second->Draw("nostack");
+		if(!val) x.second->Draw("nostack");
   		gPad->BuildLegend(0.75,0.75,0.95,0.95,"");	
 	}
 }
@@ -114,7 +184,7 @@ void SaveResults(int year, int cluster)
 {
 	TString outputFileName = Form("cascFlux_y%dc%d.root",year,cluster);
 	TFile* outputFile = new TFile(outputFileName,"RECREATE");
-	//for(auto const& x : flux_hist) x.second->Write();
+	for(auto const& x : flux_hist) x.second->Write();
 	for(auto const& x : flux_stack) x.second->Write();
 }
 
@@ -218,8 +288,8 @@ void WarnIfCloser(const vector<Event>& arr, long int minSec)
 		if(arr[i].m_eventTime.GetSec() - previousTime < minSec)
 		{
 			cout << "\nEvents with time difference " << arr[i].m_eventTime.GetSec() - previousTime;
-			cout << " seconds (smaller than " << minSec << "):\n   ";
-			cout << arr[i-1] << "\n   " << arr[i] << "\n";
+			cout << " seconds (smaller than " << minSec << "):\n\n";
+			cout << arr[i-1] << "\n\n" << arr[i] << "\n";
 
 			nCoincidences++;
 		}
@@ -387,7 +457,9 @@ int cascade_flux(bool val = false, int year = -1, int cluster = -1)
 			cout << "Year: " << seasonID << " Cluster: " << clusterID << "\n";
 		}
 
-		sortedEvents.push_back(Event(eventID,eventTime,seasonID,clusterID,runID,energy,theta,phi,position));
+		Event ev;
+		ParseEvent(ev);
+		sortedEvents.push_back(ev);
 	}
 
 	QuickSort(sortedEvents);
@@ -396,7 +468,7 @@ int cascade_flux(bool val = false, int year = -1, int cluster = -1)
 
 	gStyle->SetOptStat(111111);
 
-	if(!val) DrawResults();
+	DrawResults(val);
 	SaveResults(year,cluster);
 
 	cout << nProcessedEvents << endl;
