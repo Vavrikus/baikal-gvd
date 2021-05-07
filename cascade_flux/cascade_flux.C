@@ -172,11 +172,11 @@ void DrawResults(int val)
 	for(auto const& x : flux_stack)
 	{
 		flux_canv[x.first] = new TCanvas(x.first,"CascadeFlux",800,600);
-		if(val!=1) x.second->Draw("nostack");
+		x.second->Draw("nostack");
 
 		x.second->GetXaxis()->SetTimeDisplay(1);
 		x.second->GetXaxis()->SetTimeFormat("%m");
-		if(val!=1) x.second->Draw("nostack");
+		x.second->Draw("nostack");
   		gPad->BuildLegend(0.75,0.75,0.95,0.95,"");	
 	}
 }
