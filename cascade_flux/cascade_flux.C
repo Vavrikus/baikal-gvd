@@ -304,9 +304,9 @@ int Partition(vector<Event>& arr, int high, int low)
 	return firstBigger-1;
 }
 
-void QuickSort(vector<Event>& arr, int high = -1, int low = 0)
+void QuickSort(vector<Event>& arr, int high = -100, int low = 0)
 {
-	if(high == -1) high = arr.size()-1;
+	if(high == -100) high = arr.size()-1;
 	if(high > low)
 	{
 		int pivot = Partition(arr,high,low);
@@ -493,6 +493,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 	for (int i = 0; i < reconstructedCascades.GetEntries(); ++i)
 	{
+		if(i%10000 == 0) cout << "Filtering cascades progress: " << (100.0*i)/nRecCasc << "%" << endl;
 		reconstructedCascades.GetEntry(i);
 
 		//remove cascades from calibration
@@ -515,12 +516,12 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 		//event before 01/01/2016 warning
 		if(eventTime->GetSec() < 1451606400)
-			cout << "Event " << eventID << " has low eventTime: " << eventTime << " seasonID: " << seasonID << " clusterID: " << clusterID << " runID: " << runID << "\n";
+			cout << "Event " << eventID << " has low eventTime: " << *eventTime << " seasonID: " << seasonID << " clusterID: " << clusterID << " runID: " << runID << "\n";
 
 		//if histogram with given key does not exist, create one, fill histogram
 		if(flux_hist.find(hist_key)!=flux_hist.end())
 		{
-			flux_hist[hist_key]->Fill(*eventTime-unix1995-GetStartTime(seasonID)+GetStartTime(2016)); //1970 unix to 1995 unix
+			flux_hist[hist_key]->Fill(eventTime->GetSec()-unix1995-GetStartTime(seasonID)+GetStartTime(2016)); //1970 unix to 1995 unix
 		}
 
 		else
@@ -532,7 +533,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 			flux_hist[hist_key]->GetXaxis()->SetTimeFormat("%m");//("%m/%Y");
 			flux_hist[hist_key]->SetLineColor(seasonID-2014+clusterID);	
 
-			flux_hist[hist_key]->Fill(*eventTime-unix1995-GetStartTime(seasonID)+GetStartTime(2016)); //1970 unix to 1995 unix
+			flux_hist[hist_key]->Fill(eventTime->GetSec()-unix1995-GetStartTime(seasonID)+GetStartTime(2016)); //1970 unix to 1995 unix
 
 			cout << "Year: " << seasonID << " Cluster: " << clusterID << "\n";
 		}
@@ -541,7 +542,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 		ParseEvent(ev);
 		sortedEvents.push_back(ev);
 	}
-
+	
 	QuickSort(sortedEvents);
 	WarnIfCloser(sortedEvents,minTimeDiff);
 	cout << "\nnCoincidences: " << nCoincidences << "\n";
