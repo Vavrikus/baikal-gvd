@@ -1,0 +1,3 @@
+#!/bin/bash
+
+g++ -o3 -o CF.exe cascade_flux.C `root-config --cflags --libs`

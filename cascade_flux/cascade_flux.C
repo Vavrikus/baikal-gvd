@@ -173,7 +173,7 @@ void DrawResults(int val)
 
 	for(auto const& x : flux_stack)
 	{
-		flux_canv[x.first] = new TCanvas(x.first,"CascadeFlux",800,600);
+		flux_canv[x.first] = new TCanvas("c_cascFlux_" + x.first,"CascadeFlux",800,600);
 		x.second->Draw("nostack");
 
 		x.second->GetXaxis()->SetTimeDisplay(1);
@@ -189,6 +189,7 @@ void SaveResults(int year, int cluster)
 	TFile* outputFile = new TFile(outputFileName,"RECREATE");
 	for(auto const& x : flux_hist) x.second->Write();
 	for(auto const& x : flux_stack) x.second->Write();
+	for(auto const& x : flux_canv) x.second->Write();
 }
 
 bool IsContained(TVector3* position, double distFromCluster = 0)
