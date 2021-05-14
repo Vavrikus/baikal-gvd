@@ -115,7 +115,7 @@ void ParseEvent(Event& ev)
 //operator overloading for printing
 std::ostream& operator<<(std::ostream& stream, const Event& ev)
 {
-	stream << "     ======================================  EVENT INFO  ======================================\n";
+	stream << "     =====================================  EVENT INFO  =====================================\n";
 	stream << "     Time Stamp:\n          ";
 	ev.m_eventTime.Print();
 
@@ -316,7 +316,7 @@ void QuickSort(vector<Event>& arr, int high = -100, int low = 0)
 }
 
 //writes warning if two cascades are separated by smaller than selected amount of time
-void WarnIfCloser(const vector<Event>& arr, long int minSec)
+void WarnIfCloser(const vector<Event>& arr, long int maxSec)
 {
 	vector<Coincidence> coincidences;
 
@@ -330,7 +330,7 @@ void WarnIfCloser(const vector<Event>& arr, long int minSec)
 
 		for(int i = 1; i < arr.size(); i++)
 		{
-			if(arr[i].m_eventTime.GetSec() - previousTime <= minSec)
+			if(arr[i].m_eventTime.GetSec() - previousTime <= maxSec)
 			{	
 				if(!IsCoincidence)
 				{
@@ -369,15 +369,15 @@ void WarnIfCloser(const vector<Event>& arr, long int minSec)
 int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 {
 	int LCut;
-	int minTimeDiff;
+	int maxTimeDiff;
 
 	cout << "Apply likelihood cut? [1/0]\n";
 	cin >> LCut;
 
 	bool DoLikelihoodCut = LCut == 1;
 
-	cout << "\nMinimal time difference for coincidences in seconds: \n";
-	cin >> minTimeDiff;
+	cout << "\nMaximal time difference for coincidences in seconds: \n";
+	cin >> maxTimeDiff;
 	cout << "\n";
 
 	TChain reconstructedCascades("Tree/t_RecCasc");
@@ -544,7 +544,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	}
 	
 	QuickSort(sortedEvents);
-	WarnIfCloser(sortedEvents,minTimeDiff);
+	WarnIfCloser(sortedEvents,maxTimeDiff);
 	cout << "\nnCoincidences: " << nCoincidences << "\n";
 
 	gStyle->SetOptStat(111111);
