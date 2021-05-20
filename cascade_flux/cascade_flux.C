@@ -531,7 +531,11 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 			flux_hist[hist_key]->GetXaxis()->SetTimeDisplay(1);
 			flux_hist[hist_key]->GetXaxis()->SetTimeFormat("%m");//("%m/%Y");
-			flux_hist[hist_key]->SetLineColor(seasonID-2014+clusterID);	
+
+			int color = seasonID-2014+clusterID;
+			if(color > 9) color += 30;
+
+			flux_hist[hist_key]->SetLineColor(color);	
 
 			flux_hist[hist_key]->Fill(eventTime->GetSec()-unix1995-GetStartTime(seasonID)+GetStartTime(2016)); //1970 unix to 1995 unix
 
