@@ -408,12 +408,19 @@ void WarnLEDMatrixRun(int minCoinSize)
 
 	for(auto const& c : coincidences)
 	{
-		if(c.m_numOfEvents >= minCoinSize)
+		for(int season = 2016; season < 2021; season++)
 		{
-			noLEDRunsDetected = false;
-			cout << "seasonID: "   << c.m_events[0].m_seasonID;
-			cout << " clusterID: " << c.m_events[0].m_clusterID;
-			cout << " runID: "     << c.m_events[0].m_runID << "\n";
+			for(int cluster = 0; cluster < 10; cluster++)
+			{
+				if(c.m_events[0].m_seasonID == season && c.m_events[0].m_clusterID == cluster && c.m_numOfEvents >= minCoinSize)
+				{
+					noLEDRunsDetected = false;
+					cout << "seasonID: "   << c.m_events[0].m_seasonID;
+					cout << " clusterID: " << c.m_events[0].m_clusterID;
+					cout << " runID: "     << c.m_events[0].m_runID << "\n";
+				}
+
+			}
 		}
 	}
 
