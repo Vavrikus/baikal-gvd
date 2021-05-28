@@ -462,14 +462,15 @@ void FilterCoincidences(double maxAngDist)
 	//filtering events in each coincidence
 	for(int c = 0; c < filteredCoincidences.size(); c++)
 	{
-		bool HasCloseEvent = false;
 		vector<int> eventsToRemove;
 
 		for(int i = 0; i < filteredCoincidences[c].m_events.size(); i++)
 		{
+			bool HasCloseEvent = false;
+
 			for (int j = 0; j < filteredCoincidences[c].m_events.size(); j++)
 			{
-				if(i!=j and filteredCoincidences[c].angDist(i,j) < maxAngDist)
+				if((i!=j) and (filteredCoincidences[c].angDist(i,j) < maxAngDist))
 				{
 					HasCloseEvent = true;
 					break;
@@ -482,7 +483,7 @@ void FilterCoincidences(double maxAngDist)
 		for(int i = eventsToRemove.size() - 1; i > -1; i--)
 		{
 			filteredCoincidences[c].m_events.erase(filteredCoincidences[c].m_events.begin()+eventsToRemove[i]);
-			filteredCoincidences[c].m_numOfEvents--;			
+			filteredCoincidences[c].m_numOfEvents--;
 		}
 	}
 
