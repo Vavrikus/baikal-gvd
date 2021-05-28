@@ -38,12 +38,14 @@ struct Event
 struct Coincidence
 {
 	int m_numOfEvents;
+	int m_eventsBeforeFilter;
 	vector<Event> m_events;
 
 	Coincidence& copy()
 	{
 		Coincidence* c;
 		c->m_numOfEvents = this->m_numOfEvents;
+		c->m_eventsBeforeFilter = this->m_eventsBeforeFilter;
 		c->m_events = this->m_events;
 
 		return *c;
@@ -177,7 +179,8 @@ std::ostream& operator<<(std::ostream& stream, const Event& ev)
 std::ostream& operator<<(std::ostream& stream, const Coincidence& c)
 {
 	stream << "#######################################  COINCIDENCE  #######################################\n";
-	stream << "Number of events: " << c.m_numOfEvents << "\n\n";
+	stream << "Number of events: " << c.m_numOfEvents << "\n";
+	stream << "Events before angle filter: " << c.m_eventsBeforeFilter << "\n\n";
 
 	stream << "Time differences: ";
 
@@ -372,6 +375,7 @@ void WarnIfCloser(const vector<Event>& arr, long int maxSec)
 					IsCoincidence = true;
 
 					c.m_numOfEvents = 2;
+					c.m_eventsBeforeFilter = 2;
 					c.m_events.clear();
 					c.m_events.push_back(arr[i-1]);
 					c.m_events.push_back(arr[i]);
@@ -380,6 +384,7 @@ void WarnIfCloser(const vector<Event>& arr, long int maxSec)
 				else
 				{
 					c.m_numOfEvents++;
+					c.m_eventsBeforeFilter++;
 					c.m_events.push_back(arr[i]);
 				}
 			}
@@ -432,6 +437,7 @@ void FilterCoincidences(double maxAngDist)
 {
 	filteredCoincidences.clear();
 
+	//filtering coincidences
 	for(int c = 0; c < coincidences.size(); c++)
 	{
 		bool HasCloseEvents = false;
@@ -451,6 +457,33 @@ void FilterCoincidences(double maxAngDist)
 		}
 
 		if(HasCloseEvents) filteredCoincidences.push_back(coincidences[c]);
+	}
+
+	//filtering events in each coincidence
+	for(int c = 0; c < filteredCoincidences.size(); c++)
+	{
+		bool HasCloseEvent = false;
+		vector<int> eventsToRemove;
+
+		for(int i = 0; i < filteredCoincidences[c].m_events.size(); i++)
+		{
+			for (int j = 0; j < filteredCoincidences[c].m_events.size(); j++)
+			{
+				if(i!=j and filteredCoincidences[c].angDist(i,j) < maxAngDist)
+				{
+					HasCloseEvent = true;
+					break;
+				}
+			}
+
+			if(!HasCloseEvent) eventsToRemove.push_back(i);
+		}
+
+		for(int i = eventsToRemove.size() - 1; i > -1; i--)
+		{
+			filteredCoincidences[c].m_events.erase(filteredCoincidences[c].m_events.begin()+eventsToRemove[i]);
+			filteredCoincidences[c].m_numOfEvents--;			
+		}
 	}
 
 	cout << "\n\nFiltered coincidences with maximal distance " << maxAngDist << " degrees:\n";
