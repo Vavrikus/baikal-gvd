@@ -33,10 +33,12 @@ struct Event
 	TVector3 m_position;
 	TVector3 m_mcPosition;
 	TTimeStamp m_eventTime;
+	int m_coincidenceID = -1; //-1 if not in any coincidence
 };
 
 struct Coincidence
 {
+	int m_id;
 	int m_numOfEvents;
 	int m_eventsBeforeFilter;
 	vector<Event> m_events;
@@ -179,6 +181,7 @@ std::ostream& operator<<(std::ostream& stream, const Event& ev)
 std::ostream& operator<<(std::ostream& stream, const Coincidence& c)
 {
 	stream << "#######################################  COINCIDENCE  #######################################\n";
+	stream << "ID: " << c.m_id << "\n";
 	stream << "Number of events: " << c.m_numOfEvents << "\n";
 	stream << "Events before angle filter: " << c.m_eventsBeforeFilter << "\n\n";
 
@@ -307,13 +310,13 @@ int GetLeapYears(int season)
 //returns unix (1995) time of 01/04/YYYY 00:00:00
 int GetStartTime(int season)
 {
-	return 1459468800+(season-2016)*(365+GetLeapYears(season))*86400-unix1995;
+	return 1459468800+((season-2016)*365+GetLeapYears(season))*86400-unix1995;
 }
 
 //returns unix (1995) time of 31/03/YYYY+1 23:59:59
 int GetEndTime(int season)
 {
-	return 1491004799+(season-2016)*(365+GetLeapYears(season))*86400-unix1995;
+	return 1491004799+((season-2016)*365+GetLeapYears(season))*86400-unix1995;
 }
 
 void Swap(vector<Event>& arr, int i, int j)
@@ -489,6 +492,16 @@ void FilterCoincidences(double maxAngDist)
 
 	cout << "\n\nFiltered coincidences with maximal distance " << maxAngDist << " degrees:\n";
 	for(auto const& c : filteredCoincidences) cout << c;
+}
+
+//writes warning if two cascades are separated by smaller than selected amount of time
+//and smaler than selected angle, saves coincidences into a vector
+void findCoincidences(const vector<Event>& events, double maxTimeDiff, double maxAngDist = 360)
+{
+	if(events.size() > 0)
+	{
+
+	}
 }
 
 int cascade_flux(int val = 0, int year = -1, int cluster = -1)
