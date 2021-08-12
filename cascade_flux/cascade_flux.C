@@ -12,6 +12,7 @@
 #include "THStack.h"
 #include "TStyle.h"
 
+#include <algorithm> //std::min
 #include <iostream>
 #include <fstream>
 #include <map>
@@ -34,6 +35,25 @@ struct Event
 	TVector3 m_mcPosition;
 	TTimeStamp m_eventTime;
 	int m_coincidenceID = -1; //-1 if not in any coincidence
+
+	//returns angular distance between this event and event in argument
+	double angDist(const Event& ev) const
+	{
+	    TVector3 v1(0,0,1);
+	    v1.SetTheta(TMath::Pi()/2.0+this->m_declination);
+	    v1.SetPhi(this->m_rightAscension);
+
+	    TVector3 v2(0,0,1);
+	    v2.SetTheta(TMath::Pi()/2.0+ev.m_declination);
+	    v2.SetPhi(ev.m_rightAscension);
+
+	    return 180.0*v1.Angle(v2)/TMath::Pi();
+	}
+
+	~Event()
+	{
+		cout << "Destroyed event with ID " << this->m_eventID << endl;
+	}
 };
 
 struct Coincidence
@@ -65,6 +85,11 @@ struct Coincidence
 	    v2.SetPhi(m_events[j].m_rightAscension);
 
 	    return 180.0*v1.Angle(v2)/TMath::Pi();
+	}
+
+	~Coincidence()
+	{
+		cout << "Destroyed coincidence with ID " << this->m_id << endl;
 	}
 };
 
@@ -173,7 +198,7 @@ std::ostream& operator<<(std::ostream& stream, const Event& ev)
     stream << "     energy = " << ev.m_mcEnergy << " TeV, theta = " << ev.m_mcTheta/TMath::Pi()*180; 
     stream << ", phi = " << ev.m_mcPhi/TMath::Pi()*180 << "\n     ";
     stream << "     Position (XYZ): " << ev.m_mcPosition.X();
-    stream << " " << ev.m_mcPosition.Y() << " " << ev.m_mcPosition.Z() << "\n";
+    stream << " " << ev.m_mcPosition.Y() << " " << ev.m_mcPosition.Z() << endl;
 
     return stream;
 }
@@ -496,12 +521,163 @@ void FilterCoincidences(double maxAngDist)
 
 //writes warning if two cascades are separated by smaller than selected amount of time
 //and smaler than selected angle, saves coincidences into a vector
-void findCoincidences(const vector<Event>& events, double maxTimeDiff, double maxAngDist = 360)
+int FindCoincidences(vector<Event>& events, long int maxTimeDiff, double maxAngDist = 360)
 {
-	if(events.size() > 0)
-	{
+	int numOfCoincidences = 0; //number of created coincidences, may be bigger than actual count
 
+	coincidences.clear();
+	for(int i = 0; i < events.size(); ++i) events[i].m_coincidenceID = -1; //reset coincidence IDs
+
+	if(events.size() > 0)
+	{		
+		long int previousTime;
+
+		for(int i = 0; i < events.size()-1; ++i)
+		{
+			previousTime = events[i].m_eventTime.GetSec();
+
+			Coincidence c;
+
+			bool IsCoincidence = false;
+			int currentID = events[i].m_coincidenceID;
+
+			for (int j = i+1; j < events.size(); ++j)
+			{
+				if((events[j].m_eventTime.GetSec() - previousTime <= maxTimeDiff) and 
+				   (events[i].angDist(events[j]) <= maxAngDist))
+				{	
+					if(!IsCoincidence)
+					{
+						IsCoincidence = true;
+
+						if(currentID == -1)
+						{
+							if(events[j].m_coincidenceID == -1)
+							{
+								events[i].m_coincidenceID = numOfCoincidences;
+								events[j].m_coincidenceID = numOfCoincidences;
+
+								c.m_numOfEvents = 2;
+								c.m_eventsBeforeFilter = 2;
+								c.m_events.clear();
+								c.m_events.push_back(events[i]);
+								c.m_events.push_back(events[j]);
+								c.m_id = numOfCoincidences;
+
+								numOfCoincidences++;
+							}
+
+							else
+							{
+								currentID = events[j].m_coincidenceID;
+
+								events[i].m_coincidenceID = currentID;
+
+								coincidences[currentID].m_numOfEvents++;
+								coincidences[currentID].m_eventsBeforeFilter++;
+								coincidences[currentID].m_events.push_back(events[i]);
+							}
+						}
+
+						else
+						{
+							if(events[j].m_coincidenceID == -1)
+							{
+								events[j].m_coincidenceID = currentID;
+
+								coincidences[currentID].m_numOfEvents++;
+								coincidences[currentID].m_eventsBeforeFilter++;
+								coincidences[currentID].m_events.push_back(events[j]);
+							}
+
+							else if(events[j].m_coincidenceID != currentID)
+							{
+								int minID = min(currentID, events[j].m_coincidenceID);
+								int maxID = max(currentID, events[j].m_coincidenceID);
+
+								for(Event ev : coincidences[maxID].m_events)
+								{
+									ev.m_coincidenceID = minID;
+									coincidences[minID].m_events.push_back(ev);
+								}
+
+								coincidences[minID].m_numOfEvents += coincidences[maxID].m_numOfEvents;
+								coincidences[minID].m_eventsBeforeFilter += coincidences[maxID].m_eventsBeforeFilter;
+
+								coincidences.erase(coincidences.begin()+maxID);
+							}
+						}
+					}
+
+					else
+					{
+						if (currentID == -1)
+						{
+							if(events[j].m_coincidenceID == -1)
+							{
+								events[j].m_coincidenceID = c.m_id;
+
+								c.m_numOfEvents++;
+								c.m_eventsBeforeFilter++;
+								c.m_events.push_back(events[j]);
+							}
+
+							else
+							{
+								currentID = events[j].m_coincidenceID;
+
+								for(Event ev : c.m_events)
+								{
+									ev.m_coincidenceID = currentID;
+									coincidences[currentID].m_events.push_back(ev);
+								}
+
+								coincidences[currentID].m_numOfEvents += c.m_numOfEvents;
+								coincidences[currentID].m_eventsBeforeFilter += c.m_eventsBeforeFilter;
+							}
+						}
+
+						else
+						{
+							if(events[j].m_coincidenceID == -1)
+							{
+								events[j].m_coincidenceID = currentID;
+
+								coincidences[currentID].m_numOfEvents++;
+								coincidences[currentID].m_eventsBeforeFilter++;
+								coincidences[currentID].m_events.push_back(events[j]);
+							}
+
+							else if(events[j].m_coincidenceID != currentID)
+							{
+								int minID = min(currentID, events[j].m_coincidenceID);
+								int maxID = max(currentID, events[j].m_coincidenceID);
+
+								for(Event ev : coincidences[maxID].m_events)
+								{
+									ev.m_coincidenceID = minID;
+									coincidences[minID].m_events.push_back(ev);
+								}
+
+								coincidences[minID].m_numOfEvents += coincidences[maxID].m_numOfEvents;
+								coincidences[minID].m_eventsBeforeFilter += coincidences[maxID].m_eventsBeforeFilter;
+
+								coincidences.erase(coincidences.begin()+maxID);
+							}
+						}
+					}
+				}
+			}
+
+			if(IsCoincidence and (currentID == -1)) coincidences.push_back(c);
+		}
 	}
+
+	cout << "\n\nCoincidences with maximal time difference " << maxTimeDiff;
+	cout << " seconds and maximal distance " << maxAngDist << " degrees:\n";
+	for(auto const& c : coincidences) cout << c;
+
+	return coincidences.size();
 }
 
 int cascade_flux(int val = 0, int year = -1, int cluster = -1)
@@ -688,12 +864,19 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	}
 	
 	QuickSort(sortedEvents);
+	/*
 	WarnIfCloser(sortedEvents,maxTimeDiff);
 	FilterCoincidences(20);
 	int nCoincidences2 = filteredCoincidences.size();
 	FilterCoincidences(10);
 	int nCoincidences3 = filteredCoincidences.size();
 	WarnLEDMatrixRun(15);
+	*/
+
+	nCoincidences = FindCoincidences(sortedEvents,maxTimeDiff);
+	int nCoincidences2 = FindCoincidences(sortedEvents,maxTimeDiff,20);
+	int nCoincidences3 = FindCoincidences(sortedEvents,maxTimeDiff,10);
+
 	cout << "\nnCoincidences: " << nCoincidences << "\n";
 	cout << "nCoincidences2: " << nCoincidences2 << "\n";
 	cout << "nCoincidences3: " << nCoincidences3 << "\n";
