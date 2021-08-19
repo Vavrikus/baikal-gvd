@@ -99,6 +99,13 @@ struct Coincidence
 	{
 	    return sortedEvents[m_indexes[i]].angDist(sortedEvents[m_indexes[j]]);
 	}
+
+	//adds event from sortedEvents
+	void AddEvent(int index)
+	{
+		sortedEvents[index].m_coincidenceID = this->m_id;
+		this->m_indexes.push_back(index);
+	}
 };
 
 vector<shared_ptr<Coincidence>> coincidences;
@@ -445,15 +452,12 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 
 								c->m_indexes.clear();
 								c->m_id = numOfCoincidences;
-
-								sortedEvents[i].m_coincidenceID = numOfCoincidences;
-								c->m_indexes.push_back(i);
+								c->AddEvent(i);
 
 								numOfCoincidences++;
 							}
 
-							sortedEvents[j].m_coincidenceID = c->m_id;
-							c->m_indexes.push_back(j);
+							c->AddEvent(j);
 						}
 
 						else //matched existing coincidence
@@ -461,19 +465,8 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 							currentID = sortedEvents[j].m_coincidenceID;
 							int currentID_index = FindCID(currentID);
 
-							if(!IsCoincidence)
-							{
-								sortedEvents[i].m_coincidenceID = currentID;
-								coincidences[currentID_index]->m_indexes.push_back(i);
-							}
-							else
-							{
-								for(int ev_index : c->m_indexes)
-								{
-									sortedEvents[ev_index].m_coincidenceID = currentID;
-									coincidences[currentID_index]->m_indexes.push_back(ev_index);
-								}
-							}
+							if(!IsCoincidence) coincidences[currentID_index]->AddEvent(i);
+							else for(int e : c->m_indexes) coincidences[currentID_index]->AddEvent(e);
 						}
 					}
 
@@ -481,10 +474,8 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 					{
 						if(sortedEvents[j].m_coincidenceID == -1) //adding to existing coincidence
 						{
-							sortedEvents[j].m_coincidenceID = currentID;
 							int currentID_index = FindCID(currentID);
-
-							coincidences[currentID_index]->m_indexes.push_back(j);
+							coincidences[currentID_index]->AddEvent(j);
 						}
 
 						else if(sortedEvents[j].m_coincidenceID != currentID) //merging coincidences
@@ -496,11 +487,8 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 							int minID_index = FindCID(minID);
 							int maxID_index = FindCID(maxID);
 
-							for(int ev_index : coincidences[maxID_index]->m_indexes)
-							{
-								sortedEvents[ev_index].m_coincidenceID = minID;
-								coincidences[minID_index]->m_indexes.push_back(ev_index);
-							}
+							for(int e : coincidences[maxID_index]->m_indexes)
+								coincidences[minID_index]->AddEvent(e);
 
 							coincidences.erase(coincidences.begin()+maxID_index);
 						}
