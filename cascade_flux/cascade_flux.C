@@ -393,17 +393,15 @@ void WarnLEDMatrixRun(int minCoinSize)
 //and smaler than selected angle, saves coincidences into a vector
 int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 {
-	cout << "Looking for coincidences with maxTimeDiff " << maxTimeDiff << " seconds and maxAngDist " << maxAngDist << " degrees." << endl;
 	int numOfCoincidences = 0; //number of created coincidences, may be bigger than actual count
 
-	cout << "Clearing coincidences." << endl;
 	coincidences.clear();
-	coincidences.reserve(sortedEvents.size());
-	for(int i = 0; i < sortedEvents.size(); ++i) sortedEvents[i].m_coincidenceID = -1; //reset coincidence IDs
+
+	//reset coincidence IDs
+	for(int i = 0; i < sortedEvents.size(); ++i) sortedEvents[i].m_coincidenceID = -1;
 
 	if(sortedEvents.size() > 0)
 	{
-		cout << "Entering for loop." << endl;
 		for(int i = 0; i < sortedEvents.size()-1; ++i)
 		{
 			long int previousTime = sortedEvents[i].m_eventTime.GetSec();
@@ -413,56 +411,33 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 			bool IsCoincidence = false;
 			int currentID = sortedEvents[i].m_coincidenceID;
 
-			cout << "Searching events coinciding with event i = " << i << ", total events " << sortedEvents.size() << "." << endl;
-			for (int j = i+1; j < sortedEvents.size(); ++j)
+			for (int j = i+1; j < sortedEvents.size(); ++j) //searching events coinciding with event i
 			{
-				//cout << "Checking coincidence between indexes " << i << " and " << j << "." << endl;
 				if((sortedEvents[j].m_eventTime.GetSec() - previousTime <= maxTimeDiff) and 
 				   (sortedEvents[i].angDist(sortedEvents[j]) <= maxAngDist))
 				{	
-					cout << "Coincidence between indexes " << i << " and " << j << " found." << endl;
 					if(!IsCoincidence)
 					{
 						IsCoincidence = true;
 
 						if(currentID == -1)
 						{
-							if(sortedEvents[j].m_coincidenceID == -1)
+							if(sortedEvents[j].m_coincidenceID == -1) //potential new coincidence
 							{
-								cout << "Potential new coincidence." << endl;
 								sortedEvents[i].m_coincidenceID = numOfCoincidences;
 								sortedEvents[j].m_coincidenceID = numOfCoincidences;
-
-								if(numOfCoincidences == 376)
-								{
-									cout << "Creating coincidence with id 376." << endl;
-									cout << "i: " << i << ", j: " << j << endl;
-									cout << "EVENT i:\n" << sortedEvents[i] << endl;
-									cout << "EVENT j:\n" << sortedEvents[j] << endl;
-								}
 
 								c->m_indexes.clear();
 								c->m_indexes.push_back(i);
 								c->m_indexes.push_back(j);
 								c->m_id = numOfCoincidences;
 
-								if(numOfCoincidences == 376)
-								{
-									cout << "Created coincidence with id 376." << endl;
-									cout << "i: " << i << ", j: " << j << endl;
-									cout << "EVENT i:\n" << sortedEvents[i] << endl;
-									cout << "EVENT j:\n" << sortedEvents[j] << endl;
-									cout << *c << endl;
-								}
-
 								numOfCoincidences++;
 							}
 
-							else
+							else //matched existing coincidence (1 event)
 							{
-								cout << "Matched existing coincidence (1 event)." << endl;
 								currentID = sortedEvents[j].m_coincidenceID;
-
 								sortedEvents[i].m_coincidenceID = currentID;
 
 								int currentID_index;
@@ -477,15 +452,8 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 
 						else
 						{
-							if(sortedEvents[j].m_coincidenceID == -1)
+							if(sortedEvents[j].m_coincidenceID == -1) //adding to existing coincidence (1st event)
 							{
-								cout << "Adding to existing coincidence (1st event)." << endl;
-								cout << "i: " << i << ", j: " << j << endl;
-								cout << "currentID: " << currentID << " numOfCoincidences: " << numOfCoincidences << endl;
-								cout << "EVENT i:\n" << sortedEvents[i] << endl;
-								cout << "EVENT j:\n" << sortedEvents[j] << endl;
-								//for(Event ev : coincidences[currentID]->m_events) cout << ev << endl;
-
 								sortedEvents[j].m_coincidenceID = currentID;
 
 								int currentID_index;
@@ -497,102 +465,8 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 								coincidences[currentID_index]->m_indexes.push_back(j);
 							}
 
-							else if(sortedEvents[j].m_coincidenceID != currentID)
+							else if(sortedEvents[j].m_coincidenceID != currentID) //merging coincidences
 							{
-								cout << "Merging coincidences." << endl;
-								int minID = min(currentID, sortedEvents[j].m_coincidenceID);
-								int maxID = max(currentID, sortedEvents[j].m_coincidenceID);
-
-								cout << "Searching minID_index." << endl;
-								int minID_index;
-								for(int k = 0; k < coincidences.size(); k++)
-								{
-									if(coincidences[k]->m_id == minID) {minID_index = k; break;}
-								}
-								
-								cout << "Searching maxID_index." << endl;
-
-								int maxID_index;
-								for(int k = 0; k < coincidences.size(); k++)
-								{
-									if(coincidences[k]->m_id == maxID) {maxID_index = k; break;}
-								}
-								cout << "minID: " << minID << ", maxID: " << maxID << ", minID_index: " << minID_index << ", maxID_index: " << maxID_index << endl;
-								cout << "coincidences.size(): " << coincidences.size() << ", coincidences.back()->m_id: " << coincidences.back()->m_id << endl;
-								cout << "Actual Merging." << endl;
-
-								for(int ev_index : coincidences[maxID_index]->m_indexes)
-								{DEBUG()
-									sortedEvents[ev_index].m_coincidenceID = minID;DEBUG()
-									coincidences[minID_index]->m_indexes.push_back(ev_index);DEBUG()
-								}
-
-								cout << "Erasing duplicit coincidence." << endl;
-								//cout << *coincidences[maxID] << endl;
-
-								coincidences.erase(coincidences.begin()+maxID_index);
-							}
-						}
-					}
-
-					else
-					{
-						if (currentID == -1)
-						{
-							if(sortedEvents[j].m_coincidenceID == -1)
-							{
-								cout << "Enlarging potential new coincidence." << endl;
-								sortedEvents[j].m_coincidenceID = c->m_id;
-
-								c->m_indexes.push_back(j);
-							}
-
-							else
-							{
-								cout << "Matched existing coincidence (more events)." << endl;
-								currentID = sortedEvents[j].m_coincidenceID;
-								cout << "Set currentID." << endl;
-								cout << "Temporary coincidence:\n" << c << endl;
-
-								int currentID_index;
-								for(int k = 0; k < coincidences.size(); k++)
-								{
-									if(coincidences[k]->m_id == currentID) {currentID_index = k; break;}
-								}
-
-								for(int ev_index : c->m_indexes)
-								{
-									cout << "Copying event with id " << sortedEvents[ev_index].m_eventID << "." << endl;
-									sortedEvents[ev_index].m_coincidenceID = currentID;
-									cout << "Set coincidence ID of event." << endl;
-									cout << "EVENT:\n" << sortedEvents[ev_index] << endl;
-									coincidences[currentID_index]->m_indexes.push_back(ev_index);
-									cout << "Copied event." << endl;
-								}
-								cout << "Finished copying." << endl;
-							}
-						}
-
-						else
-						{
-							if(sortedEvents[j].m_coincidenceID == -1)
-							{
-								cout << "Adding to existing coincidence (not 1st event)." << endl;
-								sortedEvents[j].m_coincidenceID = currentID;
-
-
-								int currentID_index;
-								for(int k = 0; k < coincidences.size(); k++)
-								{
-									if(coincidences[k]->m_id == currentID) {currentID_index = k; break;}
-								}
-
-								coincidences[currentID_index]->m_indexes.push_back(j);
-							}
-
-							else if(sortedEvents[j].m_coincidenceID != currentID)
-							{
-								cout << "Merging coincidences later." << endl;
 								int minID = min(currentID, sortedEvents[j].m_coincidenceID);
 								int maxID = max(currentID, sortedEvents[j].m_coincidenceID);
 
@@ -614,7 +488,77 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 									coincidences[minID_index]->m_indexes.push_back(ev_index);
 								}
 
-								cout << "Erasing duplicit coincidence." << endl;
+								coincidences.erase(coincidences.begin()+maxID_index);
+							}
+						}
+					}
+
+					else
+					{
+						if (currentID == -1)
+						{
+							if(sortedEvents[j].m_coincidenceID == -1) //enlarging potential new coincidence
+							{
+								sortedEvents[j].m_coincidenceID = c->m_id;
+
+								c->m_indexes.push_back(j);
+							}
+
+							else //matched existing coincidence (more events)
+							{
+								currentID = sortedEvents[j].m_coincidenceID;
+
+								int currentID_index;
+								for(int k = 0; k < coincidences.size(); k++)
+								{
+									if(coincidences[k]->m_id == currentID) {currentID_index = k; break;}
+								}
+
+								for(int ev_index : c->m_indexes)
+								{
+									sortedEvents[ev_index].m_coincidenceID = currentID;
+									coincidences[currentID_index]->m_indexes.push_back(ev_index);
+								}
+							}
+						}
+
+						else
+						{
+							if(sortedEvents[j].m_coincidenceID == -1) //adding to existing coincidence (not 1st event)
+							{
+								sortedEvents[j].m_coincidenceID = currentID;
+
+								int currentID_index;
+								for(int k = 0; k < coincidences.size(); k++)
+								{
+									if(coincidences[k]->m_id == currentID) {currentID_index = k; break;}
+								}
+
+								coincidences[currentID_index]->m_indexes.push_back(j);
+							}
+
+							else if(sortedEvents[j].m_coincidenceID != currentID) //merging coincidences later
+							{
+								int minID = min(currentID, sortedEvents[j].m_coincidenceID);
+								int maxID = max(currentID, sortedEvents[j].m_coincidenceID);
+
+								int minID_index;
+								for(int k = 0; k < coincidences.size(); k++)
+								{
+									if(coincidences[k]->m_id == minID) {minID_index = k; break;}
+								}
+
+								int maxID_index;
+								for(int k = 0; k < coincidences.size(); k++)
+								{
+									if(coincidences[k]->m_id == maxID) {maxID_index = k; break;}
+								}
+
+								for(int ev_index : coincidences[maxID_index]->m_indexes)
+								{
+									sortedEvents[ev_index].m_coincidenceID = minID;
+									coincidences[minID_index]->m_indexes.push_back(ev_index);
+								}
 
 								coincidences.erase(coincidences.begin()+maxID_index);
 							}
@@ -623,22 +567,7 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 				}
 			}
 
-			if(IsCoincidence and (currentID == -1)) 
-			{
-				cout << "Adding new coincidence." << endl; 
-				if(numOfCoincidences == 377)
-				{
-					cout << "Adding coincidence with id 376." << endl;
-					cout << *c << endl;
-				}
-				coincidences.push_back(c); 
-				if(numOfCoincidences == 377)
-				{
-					cout << "Adding coincidence with id 376." << endl;
-					cout << *coincidences.back() << endl;
-				}
-				cout << "Added new coincidence." << endl;
-			}
+			if(IsCoincidence and (currentID == -1)) coincidences.push_back(c); //adding new coincidence
 		}
 	}
 
