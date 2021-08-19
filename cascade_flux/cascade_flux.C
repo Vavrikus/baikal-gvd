@@ -435,83 +435,39 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 				if((sortedEvents[j].m_eventTime.GetSec() - previousTime <= maxTimeDiff) and 
 				   (sortedEvents[i].angDist(sortedEvents[j]) <= maxAngDist))
 				{	
-					if(!IsCoincidence)
+					if(currentID == -1)
 					{
-						IsCoincidence = true;
-
-						if(currentID == -1)
+						if(sortedEvents[j].m_coincidenceID == -1) //potential new coincidence
 						{
-							if(sortedEvents[j].m_coincidenceID == -1) //potential new coincidence
+							if(!IsCoincidence)
 							{
-								sortedEvents[i].m_coincidenceID = numOfCoincidences;
-								sortedEvents[j].m_coincidenceID = numOfCoincidences;
+								IsCoincidence = true;
 
 								c->m_indexes.clear();
-								c->m_indexes.push_back(i);
-								c->m_indexes.push_back(j);
 								c->m_id = numOfCoincidences;
+
+								sortedEvents[i].m_coincidenceID = numOfCoincidences;
+								c->m_indexes.push_back(i);
 
 								numOfCoincidences++;
 							}
 
-							else //matched existing coincidence (1 event)
+							sortedEvents[j].m_coincidenceID = c->m_id;
+							c->m_indexes.push_back(j);
+						}
+
+						else //matched existing coincidence
+						{
+							currentID = sortedEvents[j].m_coincidenceID;
+							int currentID_index = FindCID(currentID);
+
+							if(!IsCoincidence)
 							{
-								currentID = sortedEvents[j].m_coincidenceID;
 								sortedEvents[i].m_coincidenceID = currentID;
-
-								int currentID_index = FindCID(currentID);
-
 								coincidences[currentID_index]->m_indexes.push_back(i);
 							}
-						}
-
-						else
-						{
-							if(sortedEvents[j].m_coincidenceID == -1) //adding to existing coincidence (1st event)
+							else
 							{
-								sortedEvents[j].m_coincidenceID = currentID;
-								int currentID_index = FindCID(currentID);
-
-								coincidences[currentID_index]->m_indexes.push_back(j);
-							}
-
-							else if(sortedEvents[j].m_coincidenceID != currentID) //merging coincidences
-							{
-								int minID = min(currentID, sortedEvents[j].m_coincidenceID);
-								int maxID = max(currentID, sortedEvents[j].m_coincidenceID);
-
-								int minID_index = FindCID(minID);
-								int maxID_index = FindCID(maxID);
-
-								for(int ev_index : coincidences[maxID_index]->m_indexes)
-								{
-									sortedEvents[ev_index].m_coincidenceID = minID;
-									coincidences[minID_index]->m_indexes.push_back(ev_index);
-									currentID = minID;
-								}
-
-								coincidences.erase(coincidences.begin()+maxID_index);
-							}
-						}
-					}
-
-					else
-					{
-						if (currentID == -1)
-						{
-							if(sortedEvents[j].m_coincidenceID == -1) //enlarging potential new coincidence
-							{
-								sortedEvents[j].m_coincidenceID = c->m_id;
-
-								c->m_indexes.push_back(j);
-							}
-
-							else //matched existing coincidence (more events)
-							{
-								currentID = sortedEvents[j].m_coincidenceID;
-
-								int currentID_index = FindCID(currentID);
-
 								for(int ev_index : c->m_indexes)
 								{
 									sortedEvents[ev_index].m_coincidenceID = currentID;
@@ -519,37 +475,36 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 								}
 							}
 						}
-
-						else
-						{
-							if(sortedEvents[j].m_coincidenceID == -1) //adding to existing coincidence (not 1st event)
-							{
-								sortedEvents[j].m_coincidenceID = currentID;
-
-								int currentID_index = FindCID(currentID);
-
-								coincidences[currentID_index]->m_indexes.push_back(j);
-							}
-
-							else if(sortedEvents[j].m_coincidenceID != currentID) //merging coincidences later
-							{
-								int minID = min(currentID, sortedEvents[j].m_coincidenceID);
-								int maxID = max(currentID, sortedEvents[j].m_coincidenceID);
-								currentID = minID;
-
-								int minID_index = FindCID(minID);
-								int maxID_index = FindCID(maxID);
-
-								for(int ev_index : coincidences[maxID_index]->m_indexes)
-								{
-									sortedEvents[ev_index].m_coincidenceID = minID;
-									coincidences[minID_index]->m_indexes.push_back(ev_index);
-								}
-
-								coincidences.erase(coincidences.begin()+maxID_index);
-							}
-						}
 					}
+
+					else
+					{
+						if(sortedEvents[j].m_coincidenceID == -1) //adding to existing coincidence
+						{
+							sortedEvents[j].m_coincidenceID = currentID;
+							int currentID_index = FindCID(currentID);
+
+							coincidences[currentID_index]->m_indexes.push_back(j);
+						}
+
+						else if(sortedEvents[j].m_coincidenceID != currentID) //merging coincidences
+						{
+							int minID = min(currentID, sortedEvents[j].m_coincidenceID);
+							int maxID = max(currentID, sortedEvents[j].m_coincidenceID);
+							currentID = minID;
+
+							int minID_index = FindCID(minID);
+							int maxID_index = FindCID(maxID);
+
+							for(int ev_index : coincidences[maxID_index]->m_indexes)
+							{
+								sortedEvents[ev_index].m_coincidenceID = minID;
+								coincidences[minID_index]->m_indexes.push_back(ev_index);
+							}
+
+							coincidences.erase(coincidences.begin()+maxID_index);
+						}
+					}					
 				}
 			}
 
