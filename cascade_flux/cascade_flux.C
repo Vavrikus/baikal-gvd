@@ -389,6 +389,25 @@ void WarnLEDMatrixRun(int minCoinSize)
 	if(noLEDRunsDetected) cout << "No runs detected." << endl;
 }
 
+//attempts to find a coincidence with given id and returns its index (-1 if unsuccessful)
+int FindCID(const int& id) 
+{
+	int index = -1;
+	for (int i = 0; i < coincidences.size(); ++i)
+	{
+		if(coincidences[i]->m_id == id) {index = i; break;}
+	}
+
+	if(index == -1) 
+	{
+		cout << "FindCID warning: Unable to find coincidence with id " << id << "." << endl;
+		cout << "coincidences.size(): " << coincidences.size();
+		cout << ", coincidences.back()->m_id: " << coincidences.back()->m_id << endl;
+	}
+
+	return index;
+}
+
 //writes warning if two or more cascades are separated by smaller than selected amount of time
 //and smaler than selected angle, saves coincidences into a vector
 int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
@@ -440,11 +459,7 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 								currentID = sortedEvents[j].m_coincidenceID;
 								sortedEvents[i].m_coincidenceID = currentID;
 
-								int currentID_index;
-								for(int k = 0; k < coincidences.size(); k++)
-								{
-									if(coincidences[k]->m_id == currentID) {currentID_index = k; break;}
-								}
+								int currentID_index = FindCID(currentID);
 
 								coincidences[currentID_index]->m_indexes.push_back(i);
 							}
@@ -455,12 +470,7 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 							if(sortedEvents[j].m_coincidenceID == -1) //adding to existing coincidence (1st event)
 							{
 								sortedEvents[j].m_coincidenceID = currentID;
-
-								int currentID_index;
-								for(int k = 0; k < coincidences.size(); k++)
-								{
-									if(coincidences[k]->m_id == currentID) {currentID_index = k; break;}
-								}
+								int currentID_index = FindCID(currentID);
 
 								coincidences[currentID_index]->m_indexes.push_back(j);
 							}
@@ -470,22 +480,14 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 								int minID = min(currentID, sortedEvents[j].m_coincidenceID);
 								int maxID = max(currentID, sortedEvents[j].m_coincidenceID);
 
-								int minID_index;
-								for(int k = 0; k < coincidences.size(); k++)
-								{
-									if(coincidences[k]->m_id == minID) {minID_index = k; break;}
-								}
-
-								int maxID_index;
-								for(int k = 0; k < coincidences.size(); k++)
-								{
-									if(coincidences[k]->m_id == maxID) {maxID_index = k; break;}
-								}
+								int minID_index = FindCID(minID);
+								int maxID_index = FindCID(maxID);
 
 								for(int ev_index : coincidences[maxID_index]->m_indexes)
 								{
 									sortedEvents[ev_index].m_coincidenceID = minID;
 									coincidences[minID_index]->m_indexes.push_back(ev_index);
+									currentID = minID;
 								}
 
 								coincidences.erase(coincidences.begin()+maxID_index);
@@ -508,11 +510,7 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 							{
 								currentID = sortedEvents[j].m_coincidenceID;
 
-								int currentID_index;
-								for(int k = 0; k < coincidences.size(); k++)
-								{
-									if(coincidences[k]->m_id == currentID) {currentID_index = k; break;}
-								}
+								int currentID_index = FindCID(currentID);
 
 								for(int ev_index : c->m_indexes)
 								{
@@ -528,11 +526,7 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 							{
 								sortedEvents[j].m_coincidenceID = currentID;
 
-								int currentID_index;
-								for(int k = 0; k < coincidences.size(); k++)
-								{
-									if(coincidences[k]->m_id == currentID) {currentID_index = k; break;}
-								}
+								int currentID_index = FindCID(currentID);
 
 								coincidences[currentID_index]->m_indexes.push_back(j);
 							}
@@ -541,18 +535,10 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 							{
 								int minID = min(currentID, sortedEvents[j].m_coincidenceID);
 								int maxID = max(currentID, sortedEvents[j].m_coincidenceID);
+								currentID = minID;
 
-								int minID_index;
-								for(int k = 0; k < coincidences.size(); k++)
-								{
-									if(coincidences[k]->m_id == minID) {minID_index = k; break;}
-								}
-
-								int maxID_index;
-								for(int k = 0; k < coincidences.size(); k++)
-								{
-									if(coincidences[k]->m_id == maxID) {maxID_index = k; break;}
-								}
+								int minID_index = FindCID(minID);
+								int maxID_index = FindCID(maxID);
 
 								for(int ev_index : coincidences[maxID_index]->m_indexes)
 								{
