@@ -368,34 +368,6 @@ void QuickSort(vector<Event>& arr, int high = -100, int low = 0)
 	}
 }
 
-void WarnLEDMatrixRun(int minCoinSize)
-{
-	cout << "Possible LED matrix runs detected (coincidence with ";
-	cout << minCoinSize << " or more events):\n";
-
-	bool noLEDRunsDetected = true;
-
-	for(shared_ptr<Coincidence> c : coincidences)
-	{
-		for(int season = 2016; season < 2021; season++)
-		{
-			for(int cluster = 0; cluster < 10; cluster++)
-			{
-				if(sortedEvents[c->m_indexes[0]].m_seasonID == season && sortedEvents[c->m_indexes[0]].m_clusterID == cluster && c->m_indexes.size() >= minCoinSize)
-				{
-					noLEDRunsDetected = false;
-					cout << "seasonID: "   << sortedEvents[c->m_indexes[0]].m_seasonID;
-					cout << " clusterID: " << sortedEvents[c->m_indexes[0]].m_clusterID;
-					cout << " runID: "     << sortedEvents[c->m_indexes[0]].m_runID << "\n";
-				}
-
-			}
-		}
-	}
-
-	if(noLEDRunsDetected) cout << "No runs detected." << endl;
-}
-
 //attempts to find a coincidence with given id and returns its index (-1 if unsuccessful)
 int FindCID(const int& id) 
 {
@@ -441,9 +413,27 @@ void WriteCStats()
 	cout << "\nTotal coincidences: " << coincidences.size() << "\n";
 }
 
+//returns if events with indexes i,j are part coincidence with given time and angle differences
+bool IsTAC(int i, int j, long int maxTimeDiff, double maxAngDist = 360)
+{
+	return (sortedEvents[j].m_eventTime.GetSec() - sortedEvents[i].m_eventTime.GetSec() <= maxTimeDiff) and 
+				   (sortedEvents[i].angDist(sortedEvents[j]) <= maxAngDist);
+}
+
+//writes coincidences with stats into console
+void WriteTAC(long int maxTimeDiff, double maxAngDist = 360)
+{	
+	cout << "\n\nCoincidences with maximal time difference " << maxTimeDiff;
+	cout << " seconds and maximal distance " << maxAngDist << " degrees:" << endl;
+	for(auto const& c : coincidences) cout << *c;
+
+	WriteCStats();
+}
+
 //writes warning if two or more cascades are separated by smaller than selected amount of time
 //and smaler than selected angle, saves coincidences into a vector
-void FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
+template<typename... args>
+void FindCoincidences(bool(*IsCoin)(int, int, args...), args... a)
 {
 	int numOfCoincidences = 0; //number of created coincidences, may be bigger than actual count
 
@@ -465,8 +455,7 @@ void FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 
 			for (int j = i+1; j < sortedEvents.size(); ++j) //searching events coinciding with event i
 			{
-				if((sortedEvents[j].m_eventTime.GetSec() - previousTime <= maxTimeDiff) and 
-				   (sortedEvents[i].angDist(sortedEvents[j]) <= maxAngDist))
+				if(IsCoin(i,j,a...))
 				{	
 					if(currentID == -1)
 					{
@@ -529,17 +518,41 @@ void FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 
 	for(shared_ptr<Coincidence> c : coincidences) sort(c->m_indexes.begin(),c->m_indexes.end());
 
-	cout << "\n\nCoincidences with maximal time difference " << maxTimeDiff;
-	cout << " seconds and maximal distance " << maxAngDist << " degrees:" << endl;
-	for(auto const& c : coincidences) cout << *c;
+	if(IsCoin == IsTAC) WriteTAC(a...);
+}
 
-	WriteCStats();
+void WarnLEDMatrixRun(int minCoinSize)
+{
+	cout << "Possible LED matrix runs detected (coincidence with ";
+	cout << minCoinSize << " or more events):\n";
+
+	bool noLEDRunsDetected = true;
+
+	for(shared_ptr<Coincidence> c : coincidences)
+	{
+		for(int season = 2016; season < 2021; season++)
+		{
+			for(int cluster = 0; cluster < 10; cluster++)
+			{
+				if(sortedEvents[c->m_indexes[0]].m_seasonID == season && sortedEvents[c->m_indexes[0]].m_clusterID == cluster && c->m_indexes.size() >= minCoinSize)
+				{
+					noLEDRunsDetected = false;
+					cout << "seasonID: "   << sortedEvents[c->m_indexes[0]].m_seasonID;
+					cout << " clusterID: " << sortedEvents[c->m_indexes[0]].m_clusterID;
+					cout << " runID: "     << sortedEvents[c->m_indexes[0]].m_runID << "\n";
+				}
+
+			}
+		}
+	}
+
+	if(noLEDRunsDetected) cout << "No runs detected." << endl;
 }
 
 int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 {
 	int LCut;
-	int maxTimeDiff;
+	long int maxTimeDiff;
 
 	cout << "Contained + 40 cut is applied.\n";
 	cout << "Apply likelihood cut? [1/0]\n";
@@ -721,9 +734,9 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	
 	QuickSort(sortedEvents);
 
-	FindCoincidences(maxTimeDiff);
-	FindCoincidences(maxTimeDiff,20);
-	FindCoincidences(maxTimeDiff,10);
+	FindCoincidences(IsTAC,maxTimeDiff,360.0);
+	FindCoincidences(IsTAC,maxTimeDiff,20.0);
+	FindCoincidences(IsTAC,maxTimeDiff,10.0);
 
 	gStyle->SetOptStat(111111);
 
