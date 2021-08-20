@@ -432,7 +432,12 @@ void WriteCStats()
 
 	cout << "#NoE   #NoC\n";
 	cout << "=============\n";
-	for (int i = 0; i < counts.size(); ++i)	cout << i+2 << "      " << counts[i] << "\n";
+	for (int i = 0; i < counts.size(); ++i)
+	{
+		if(i < 8)       cout << i+2 << "      " << counts[i] << "\n";
+		else if(i < 98) cout << i+2 << "     " << counts[i] << "\n";
+		else            cout << i+2 << "    " << counts[i] << "\n";
+	}
 	cout << "\nTotal coincidences: " << coincidences.size() << "\n";
 }
 
@@ -520,6 +525,9 @@ void FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 			if(IsCoincidence and (currentID == -1)) coincidences.push_back(c); //adding new coincidence
 		}
 	}
+
+
+	for(shared_ptr<Coincidence> c : coincidences) sort(c->m_indexes.begin(),c->m_indexes.end());
 
 	cout << "\n\nCoincidences with maximal time difference " << maxTimeDiff;
 	cout << " seconds and maximal distance " << maxAngDist << " degrees:" << endl;
