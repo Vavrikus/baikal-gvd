@@ -415,9 +415,30 @@ int FindCID(const int& id)
 	return index;
 }
 
+//outputs coincidence counts into console
+void WriteCStats()
+{
+	vector<int> counts; //how many coincidences with given number of events, 0th index = 2
+
+	for(shared_ptr<Coincidence> c : coincidences)
+	{
+		int cEvents = c->m_indexes.size();
+
+		if(cEvents-1 > counts.size())
+			for (int i = counts.size(); i < cEvents-1; ++i) counts.push_back(0);
+
+		counts[cEvents-2]++;
+	}
+
+	cout << "#NoE   #NoC\n";
+	cout << "=============\n";
+	for (int i = 0; i < counts.size(); ++i)	cout << i+2 << "      " << counts[i] << "\n";
+	cout << "\nTotal coincidences: " << coincidences.size() << "\n";
+}
+
 //writes warning if two or more cascades are separated by smaller than selected amount of time
 //and smaler than selected angle, saves coincidences into a vector
-int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
+void FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 {
 	int numOfCoincidences = 0; //number of created coincidences, may be bigger than actual count
 
@@ -504,7 +525,7 @@ int FindCoincidences(long int maxTimeDiff, double maxAngDist = 360)
 	cout << " seconds and maximal distance " << maxAngDist << " degrees:" << endl;
 	for(auto const& c : coincidences) cout << *c;
 
-	return coincidences.size();
+	WriteCStats();
 }
 
 int cascade_flux(int val = 0, int year = -1, int cluster = -1)
@@ -691,29 +712,17 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	}
 	
 	QuickSort(sortedEvents);
-	/*
-	WarnIfCloser(sortedEvents,maxTimeDiff);
-	FilterCoincidences(20);
-	int nCoincidences2 = filteredCoincidences.size();
-	FilterCoincidences(10);
-	int nCoincidences3 = filteredCoincidences.size();
-	WarnLEDMatrixRun(15);
-	*/
 
-	nCoincidences = FindCoincidences(maxTimeDiff);
-	int nCoincidences2 = FindCoincidences(maxTimeDiff,20);
-	int nCoincidences3 = FindCoincidences(maxTimeDiff,10);
-
-	cout << "\nnCoincidences: " << nCoincidences << "\n";
-	cout << "nCoincidences2: " << nCoincidences2 << "\n";
-	cout << "nCoincidences3: " << nCoincidences3 << "\n";
+	FindCoincidences(maxTimeDiff);
+	FindCoincidences(maxTimeDiff,20);
+	FindCoincidences(maxTimeDiff,10);
 
 	gStyle->SetOptStat(111111);
 
 	DrawResults(val);
 	SaveResults(year,cluster);
 
-	cout << nProcessedEvents << endl;
+	cout << "nProcessedEvents: " << nProcessedEvents << endl;
 	TString outputFileName = Form("filteredCascades_y%dc%d.root",year,cluster);
 	TFile *newFile = new TFile(outputFileName,"recreate");
 	filteredCascades->Write();
