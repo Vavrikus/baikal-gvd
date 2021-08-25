@@ -5,6 +5,8 @@
 
 using namespace std;
 
+vector<TGraph*> flux_graphs;
+
 struct RunInfo
 {
 	int m_seasonID, m_clusterID, m_runID;
@@ -49,10 +51,13 @@ void InputLong(ifstream& inf, string& variable)
 }
 
 //load info about runs into vector from log files
-vector<RunInfo> parseRuns(string path)
+vector<RunInfo> parseRuns(const string& path)
 {
-	vector<RunInfo> dataOut;
 	ifstream inf{path};
+	vector<RunInfo> dataOut;
+
+	if(!inf) cout << "File: " << path << " was not found!" << endl;
+	else     cout << "Parsing file " << path << endl;
 
 	while(inf)
 	{
@@ -76,8 +81,14 @@ vector<RunInfo> parseRuns(string path)
 			getline(inf,line);
 			getline(inf,line);
 
+			bool IsLEDrun = false;
+
 			while(line != "*********************************************************************************")
+			{
+				if(line.find("Probably LED matrix run. Processing terminated!") != string::npos) 
+					IsLEDrun = true;
 				getline(inf,line);
+			}
 
 			string AfterNFilter, AfterSixThreeFilter, AfterQFilterChi2, AfterTFilter,
 				   AfterTFilterChi2, AfterLikelihoodFitter;			
@@ -89,39 +100,89 @@ vector<RunInfo> parseRuns(string path)
 			InputLong(inf,AfterTFilterChi2);
 			InputLong(inf,AfterLikelihoodFitter);
 
-			int sID    = stoi(seasonID);
-			int cID    = stoi(clusterID);
-			int rID    = stoi(runID);
-			double rT  = stod(runTime);
-			int N      = stoi(Nentries);
-			int ANF    = stoi(AfterNFilter);
-			int ASTF   = stoi(AfterSixThreeFilter);
-			int AQF2   = stoi(AfterQFilterChi2);
-			int ATF    = stoi(AfterTFilter);
-			int ATF2   = stoi(AfterTFilterChi2);
-			int ALF    = stoi(AfterLikelihoodFitter);
-
-			dataOut.emplace_back(RunInfo{sID,cID,rID,rT,N,ANF,ASTF,AQF2,ATF,ATF2,ALF});
-
 			// cout << seasonID << " " << clusterID << " " << runID << " " << Nentries << " ";
 			// cout << runTime << " " << AfterNFilter << " " << AfterSixThreeFilter;
 			// cout << " " << AfterQFilterChi2 << " " << AfterTFilter << " " << AfterTFilterChi2;
 			// cout << " " << AfterLikelihoodFitter << endl;
+
+            if((AfterNFilter != "to") and !IsLEDrun)
+			{
+				int sID    = stoi(seasonID);
+				int cID    = stoi(clusterID);
+				int rID    = stoi(runID);
+				double rT  = stod(runTime);
+				int N      = stoi(Nentries);
+				int ANF    = stoi(AfterNFilter);
+				int ASTF   = stoi(AfterSixThreeFilter);
+				int AQF2   = stoi(AfterQFilterChi2);
+				int ATF    = stoi(AfterTFilter);
+				int ATF2   = stoi(AfterTFilterChi2);
+				int ALF    = stoi(AfterLikelihoodFitter);
+
+				dataOut.emplace_back(RunInfo{sID,cID,rID,rT,N,ANF,ASTF,AQF2,ATF,ATF2,ALF});
+			}
 		}
 	}
 
-	for(RunInfo& ri : dataOut) cout << ri;
+	// for(const RunInfo& ri : dataOut) cout << ri;
 
 	return dataOut;
 }
 
-int readlogs()
-{
-	parseRuns("/home/vavrik/work/Baikal-GVD/cascade_flux/logs/programOutput_19_0.log");
+int readlogs(int year = -1, int cluster = -1)
+{	
+	int startSeason = year!=-1?year:16;
+	int endSeason   = year!=-1?year+1:20+1;
+
+	int startID = cluster!=-1?cluster:0;
+	int endID   = cluster!=-1?cluster+1:10;
+
+	for (int i = startSeason; i < endSeason; ++i)
+	{
+		for (int j = startID; j < endID; ++j)
+		{
+			string path = "/home/vavrik/work/Baikal-GVD/cascade_flux/logs/programOutput_";
+			path += to_string(i);
+			path += "_";
+			path += to_string(j);
+			path += ".log";
+
+			vector<RunInfo> runs = parseRuns(path);
+
+			if(runs.size() != 0)
+			{				
+				TGraph* graph = new TGraph();
+
+				TString graph_title = Form("Cascade flux year 20%d cluster %d;RunID;Cascades per day",i,j);
+
+				graph->SetTitle(graph_title);
+				graph->SetName(Form("g_cascFlux_y%dc%d",i,j));
+
+				for(const RunInfo& rinfo : runs) 
+				{
+					//if(rinfo.m_LikelihoodFit/rinfo.m_runTime > 500) cout << rinfo;
+					graph->SetPoint(graph->GetN(),(double)rinfo.m_runID,rinfo.m_LikelihoodFit/rinfo.m_runTime);
+				}
+				
+				TCanvas* c = new TCanvas();
+				c->SetTitle(Form("Cascade flux year 20%d cluster %d",i,j));
+				graph->Draw("A*");
+			}
+		}
+	}
+
 	return 0;
 }
 
-int main()
+int main(int argc, char** argv)
 {
-	return readlogs();
+	int year, cluster;
+
+	if(argc < 3) cluster = -1;
+	else cluster = stoi(argv[2]);
+
+	if(argc < 2) year = -1;
+	else year = stoi(argv[1]);
+
+	return readlogs(year,cluster);
 }
