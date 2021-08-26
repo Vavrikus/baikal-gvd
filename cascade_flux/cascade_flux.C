@@ -1,23 +1,24 @@
 #include "TCanvas.h"
-#include "TString.h"
 #include "TChain.h"
+#include "TFile.h"
+#include "TGraph.h"
 #include "TH1F.h"
 #include "TH2F.h"
-#include "TFile.h"
-#include "TVector3.h"
+#include "THStack.h"
 #include "TMath.h"
+#include "TString.h"
+#include "TStyle.h"
 #include "TSystem.h"
 #include "TTimeStamp.h"
-#include "TGraph.h"
-#include "THStack.h"
-#include "TStyle.h"
+#include "TVector3.h"
 
 #include <algorithm> //std::min
+#include <cmath>
 #include <iostream>
 #include <fstream>
 #include <map>
-#include <cmath>
 #include <memory>
+#include <string>
 
 #define DEBUG() cout << "Current Line: " << __LINE__ << endl;
 
@@ -67,14 +68,15 @@ struct Event
 double xPos[40] = {-13.76,32.14,45.06,5.13,-45.03,-76.21,-59.85,-14.47,-195.19,-164.79,-180.08,-227.51,-276.24,-279.59,-248.17,-222.70,-270.25,-228.58,-220.89,-261.89,-309.86,-337.48,-319.74,-282.27,65.85,108.73,113.87,74.19,25.1,-2.48,16.08,58.37,-163.91,-119.26,-113.90,-152.28,-202.59,-230.83,-213.25,-170.30};
 double yPos[40] = {-211.35,-235.88,-285.45,-325.83,-319.82,-281.63,-231.37,-270.17,-340.62,-384.09,-435.13,-450.13,-424.31,-372.59,-337.03,-391.09,-37.36,-65.26,-117.78,-153.57,-146.26,-101.43,-55.24,-96.82,-435.47,-462.39,-514.68,-549.90,-544.25,-500.53,-453,-491.97,-628.26,-656.49,-707.52,-744.24,-738.58,-694.13,-645.06,-685.35};
 
-//
-vector<vector<vector<int>>> ledMatrixRuns = {{{}},{{},{}},{{},{},{}},{{},{},{},{},{}},{{},{},{},{},{},{},{}}};//{{{2,3,4,5,6,7,8,9,10,11,118,119,177,193,194,200,201,228,229,230,231,232,233,234,235,236,237,560,598}},{{},{}},{{7,117,412,429,443,459,474,490,505,520,548,564,579,595},{1,2,3,6,7,37,134,340,428,450,464,480,495,510,527,540,568,584,599,615,631,647,668},{35,36,117,120,131,151,412,429,443,459,474,489,504,519,520,547,575,591,607,623,644}},{{17,18,37,38,39,40,44,61,77,93,97,111,126,142,158,174,190,203,218,232,247,264,277,292,362,377,392,407,422,437,452,467,484,536,551,566,583,596,611,628,644,661,676,677,693},{8,41,54,56,60,61,77,92,107,123,138,154,169,184,201,215,231,245,260,276,306,375,391,406,421,436,451,466,481,498,553,571,586,603,616,631,648,663,679,694,709},{8,9,10,24,80,93,109,124,139,155,170,185,201,216,233,247,262,276,291,329,330,331,337,406,422,437,453,468,483,498,513,530,594,595,596,597,611,612,629,642,657,674,689,705,720,735},{13,23,36,51,67,82,100,116,131,146,162,179,193,208,222,237,251,268,283,350,367,384},{13,23,34,50,67,82,86,88,89,90,91,92,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,112,113,114,116,117,118,120,121,122,123,124,129,130,132,137,147,163,180,193,208,222,237,238,253,265,279,363,379}},{{3,19,32,42,51,52,62,71,82,92,102,122,145,156,165,180},{12,14,24,33,35,42,51,60,69,83,90,111,134,145,146,147,155,156,157,158,159,160,162,164},{9,13,14,17,132,143,153,164,165,167,169,172},{1,15,17,21,26,36,46,58,67,76,86,94,103,112,114},{2,12,17,19,23,24,26,36,44,55,63,73,82,89,98,106,117,131,143,151,160,166,168,175},{18,20,25,31,41,51,62,71,90,110,118,128,130,143,145,154,157,163,166,173,178,185,195,220,232,241,250,260,282,296,301,312,326,336,346,356,367,384,394,404,414,425,434,442,451},{7,10,12,16,17,22,30,40,49,58,67,76,84,93,102,105,113,115,129,131,143,144,149,152,159,165,169,174,177,207,219,228,237,245,254,264,277,281,290,301,312,322,332,342,359,369,380,389,398,407,417,426}}};
+//{{{}},{{},{}},{{},{},{}},{{},{},{},{},{}},{{},{},{},{},{},{},{}}};//
+vector<vector<vector<int>>> ledMatrixRuns = {{{2,3,4,5,6,7,8,9,10,11,118,119,177,193,194,200,201,228,229,230,231,232,233,234,235,236,237,560,598}},{{},{}},{{7,117,412,429,443,459,474,490,505,520,548,564,579,595},{1,2,3,6,7,37,134,340,428,450,464,480,495,510,527,540,568,584,599,615,631,647,668},{35,36,117,120,131,151,412,429,443,459,474,489,504,519,520,547,575,591,607,623,644}},{{17,18,37,38,39,40,44,61,77,93,97,111,126,142,158,174,190,203,218,232,247,264,277,292,362,377,392,407,422,437,452,467,484,536,551,566,583,596,611,628,644,661,676,677,693},{8,41,54,56,60,61,77,92,107,123,138,154,169,184,201,215,231,245,260,276,306,375,391,406,421,436,451,466,481,498,553,571,586,603,616,631,648,663,679,694,709},{8,9,10,24,80,93,109,124,139,155,170,185,201,216,233,247,262,276,291,329,330,331,337,406,422,437,453,468,483,498,513,530,594,595,596,597,611,612,629,642,657,674,689,705,720,735},{13,23,36,51,67,82,100,116,131,146,162,179,193,208,222,237,251,268,283,350,367,384},{13,23,34,50,67,82,86,88,89,90,91,92,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,112,113,114,116,117,118,120,121,122,123,124,129,130,132,137,147,163,180,193,208,222,237,238,253,265,279,363,379}},{{3,19,32,42,51,52,62,71,82,92,102,122,145,156,165,180},{12,14,24,33,35,42,51,60,69,83,90,111,134,145,146,147,155,156,157,158,159,160,162,164},{9,13,14,17,132,143,153,164,165,167,169,172},{1,15,17,21,26,36,46,58,67,76,86,94,103,112,114},{2,12,17,19,23,24,26,36,44,55,63,73,82,89,98,106,117,131,143,151,160,166,168,175},{18,20,25,31,41,51,62,71,90,110,118,128,130,143,145,154,157,163,166,173,178,185,195,220,232,241,250,260,282,296,301,312,326,336,346,356,367,384,394,404,414,425,434,442,451},{7,10,12,16,17,22,30,40,49,58,67,76,84,93,102,105,113,115,129,131,143,144,149,152,159,165,169,174,177,207,219,228,237,245,254,264,277,281,290,301,312,322,332,342,359,369,380,389,398,407,417,426}}};
 
 int unix1995 = 788918400;
 
 map<TString,TH1F*> flux_hist;
 map<TString,THStack*> flux_stack;
 map<TString,TCanvas*> flux_canv;
+vector<TGraph*> flux_graphs;
 
 int seasonID, clusterID, runID, eventID, nHits, nHitsAfterCaus, nHitsAfterTFilter, nStringsAfterCaus, nStringsAfterTFilter, nTrackHits;
 double energy,theta,phi,mcEnergy,mcTheta,mcPhi;
@@ -119,6 +121,14 @@ struct Coincidence
 
 vector<shared_ptr<Coincidence>> coincidences;
 //vector<Coincidence> filteredCoincidences;
+
+struct RunInfo
+{
+	int m_seasonID, m_clusterID, m_runID;
+	double m_runTime; //days
+	int m_Nentries, m_NFil, m_SixThreeFil, m_QFilChi2, m_TFil, m_TFilChi2, m_LikelihoodFit;
+	int m_CustomFil;
+};
 
 //getting data from global variables to objects
 void ParseEvent(Event& ev)
@@ -234,6 +244,24 @@ std::ostream& operator<<(std::ostream& stream, const Coincidence& c)
 	for(int ev_index : c.m_indexes) stream << sortedEvents[ev_index] << "\n\n";
 
     return stream;
+}
+
+ostream& operator<<(ostream& stream, const RunInfo& rinfo)
+{
+	stream << "\nRUN INFO:\n";
+	stream << "  seasonID: " << rinfo.m_seasonID << " clusterID: " << rinfo.m_clusterID;
+	stream << " runID: " << rinfo.m_runID << "\n";
+	stream << "  runTime: " << rinfo.m_runTime << " days";
+	stream << "\n  Nentries:               " << rinfo.m_Nentries;
+	stream << "\n  After NFilter:          " << rinfo.m_NFil;
+	stream << "\n  After SixThreeFilter:   " << rinfo.m_SixThreeFil;
+	stream << "\n  After QFilterChi2:      " << rinfo.m_QFilChi2;
+	stream << "\n  After TFilter:          " << rinfo.m_TFil;
+	stream << "\n  After TFilterChi2:      " << rinfo.m_TFilChi2;
+	stream << "\n  After LikelihoodFitter: " << rinfo.m_LikelihoodFit;
+	stream << "\n  After Custom Filter:    " << rinfo.m_CustomFil << "\n";
+
+	return stream;
 }
 
 void DrawResults(int val)
@@ -575,6 +603,103 @@ void WarnLEDMatrixRun(int minCoinSize = 3, long int maxTimeDiff = 3600, double m
 	cout << endl;
 }
 
+void InputShort(ifstream& inf, string& variable)
+{
+	string line;
+
+	inf >> line;
+	inf >> variable;
+}
+
+void InputLong(ifstream& inf, string& variable)
+{
+	string line;
+
+	getline(inf,line);
+	inf >> line;
+	inf >> line;
+	inf >> variable;
+}
+
+//load info about runs into vector from log files
+vector<RunInfo> parseRuns(const string& path)
+{
+	ifstream inf{path};
+	vector<RunInfo> dataOut;
+
+	if(!inf) cout << "File: " << path << " was not found!" << endl;
+	else     cout << "Parsing file " << path << endl;
+
+	while(inf)
+	{
+		string line;
+		getline(inf,line);
+
+		if(line == "RunInfo (Number of entries, RunTime [hours], runTime [days])")
+		{
+			//skip to line containing IDs
+			getline(inf,line);
+
+			string seasonID, clusterID, runID, Nentries, runTime;
+
+			InputShort(inf,seasonID);
+			InputShort(inf,clusterID);
+			InputShort(inf,runID);
+			InputShort(inf,Nentries);
+			InputShort(inf,runTime);
+
+			getline(inf,line);
+			getline(inf,line);
+			getline(inf,line);
+
+			bool IsLEDrun = false;
+
+			while(line != "*********************************************************************************")
+			{
+				if(line.find("Probably LED matrix run. Processing terminated!") != string::npos) 
+					IsLEDrun = true;
+				getline(inf,line);
+			}
+
+			string AfterNFilter, AfterSixThreeFilter, AfterQFilterChi2, AfterTFilter,
+				   AfterTFilterChi2, AfterLikelihoodFitter;			
+
+			InputLong(inf,AfterNFilter);
+			InputLong(inf,AfterSixThreeFilter);
+			InputLong(inf,AfterQFilterChi2);
+			InputLong(inf,AfterTFilter);
+			InputLong(inf,AfterTFilterChi2);
+			InputLong(inf,AfterLikelihoodFitter);
+
+			// cout << seasonID << " " << clusterID << " " << runID << " " << Nentries << " ";
+			// cout << runTime << " " << AfterNFilter << " " << AfterSixThreeFilter;
+			// cout << " " << AfterQFilterChi2 << " " << AfterTFilter << " " << AfterTFilterChi2;
+			// cout << " " << AfterLikelihoodFitter << endl;
+
+            if((AfterNFilter != "to") and !IsLEDrun)
+			{
+				int sID    = stoi(seasonID);
+				int cID    = stoi(clusterID);
+				int rID    = stoi(runID);
+				double rT  = stod(runTime);
+				int N      = stoi(Nentries);
+				int ANF    = stoi(AfterNFilter);
+				int ASTF   = stoi(AfterSixThreeFilter);
+				int AQF2   = stoi(AfterQFilterChi2);
+				int ATF    = stoi(AfterTFilter);
+				int ATF2   = stoi(AfterTFilterChi2);
+				int ALF    = stoi(AfterLikelihoodFitter);
+
+				dataOut.emplace_back(RunInfo{sID,cID,rID,rT,N,ANF,ASTF,AQF2,ATF,ATF2,ALF});
+			}
+		}
+	}
+
+	// for(const RunInfo& ri : dataOut) cout << ri;
+
+	return dataOut;
+}
+
 int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 {
 	int LCut;
@@ -597,10 +722,10 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 	//choosing data based on cluster and year
 	int startID = cluster!=-1?cluster:0;
-	int endID = cluster!=-1?cluster+1:10;
+	int endID   = cluster!=-1?cluster+1:10;
 
 	int startSeason = year!=-1?year:16;
-	int endSeason = year!=-1?year+1:20+1;
+	int endSeason   = year!=-1?year+1:20+1;
 
 	//path to data folder
 	const char* env_p = val==1?"/home/vavrik/bajkal/recoCascades/v1.2":"/home/vavrik/work/data";
@@ -623,7 +748,43 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 			  		reconstructedCascades.Add(TString(filesDir) + f + "/recCascResults.root");
 			  	}
 			}
+			
 			gSystem->FreeDirectory(dir);
+		}
+	}
+
+	//read run logs
+	for (int j = startSeason; j < endSeason; ++j)
+	{
+		for (int i = startID; i < endID; ++i)
+		{
+			string path = "/home/vavrik/work/Baikal-GVD/cascade_flux/logs/programOutput_";
+			path += to_string(j);
+			path += "_";
+			path += to_string(i);
+			path += ".log";
+
+			vector<RunInfo> runs = parseRuns(path);
+
+			if(runs.size() != 0)
+			{				
+				TGraph* graph = new TGraph();
+
+				TString graph_title = Form("Cascade flux year 20%d cluster %d;RunID;Cascades per day",j,i);
+
+				graph->SetTitle(graph_title);
+				graph->SetName(Form("g_cascFlux_y%dc%d",j,i));
+
+				for(const RunInfo& rinfo : runs) 
+				{
+					//if(rinfo.m_LikelihoodFit/rinfo.m_runTime > 500) cout << rinfo;
+					graph->SetPoint(graph->GetN(),(double)rinfo.m_runID,rinfo.m_LikelihoodFit/rinfo.m_runTime);
+				}
+				
+				TCanvas* c = new TCanvas();
+				c->SetTitle(Form("Cascade flux year 20%d cluster %d",j,i));
+				graph->Draw("A*");
+			}
 		}
 	}
 
@@ -696,7 +857,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 	int nRecCasc = reconstructedCascades.GetEntries();
 
-	cout << nRecCasc << endl;
+	cout << "\nnRecCasc: " << nRecCasc << "\n" << endl;
 
 	int nProcessedEvents = 0;
 
@@ -704,7 +865,10 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 	for (int i = 0; i < reconstructedCascades.GetEntries(); ++i)
 	{
-		if(i%10000 == 0) cout << "Filtering cascades progress: " << (100.0*i)/nRecCasc << "%" << endl;
+		if(floor(10*i/nRecCasc) != floor(10*(i-1)/nRecCasc)) 
+			cout << "Filtering cascades progress: " << floor((100.0*i)/nRecCasc) << "%" << endl;
+		if(i == nRecCasc-1) cout << "Filtering cascades progress: 100%" << endl;
+
 		reconstructedCascades.GetEntry(i);
 
 		//remove cascades from calibration
@@ -760,16 +924,16 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	
 	QuickSort(sortedEvents);
 
-	FindCoincidences(IsTAC,maxTimeDiff,360.0);
-	FindCoincidences(IsTAC,maxTimeDiff,20.0);
-	FindCoincidences(IsTAC,maxTimeDiff,10.0);
+	// FindCoincidences(IsTAC,maxTimeDiff,360.0);
+	// FindCoincidences(IsTAC,maxTimeDiff,20.0);
+	// FindCoincidences(IsTAC,maxTimeDiff,10.0);
 
 	WarnLEDMatrixRun();
 
 	gStyle->SetOptStat(111111);
 
-	DrawResults(val);
-	SaveResults(year,cluster);
+	// DrawResults(val);
+	// SaveResults(year,cluster);
 
 	cout << "nProcessedEvents: " << nProcessedEvents << endl;
 	TString outputFileName = Form("filteredCascades_y%dc%d.root",year,cluster);
