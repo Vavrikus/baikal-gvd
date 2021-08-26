@@ -76,7 +76,7 @@ int unix1995 = 788918400;
 map<TString,TH1F*> flux_hist;
 map<TString,THStack*> flux_stack;
 map<TString,TCanvas*> flux_canv;
-vector<TGraph*> flux_graphs;
+map<TString,TGraph*> flux_graphs;
 
 int seasonID, clusterID, runID, eventID, nHits, nHitsAfterCaus, nHitsAfterTFilter, nStringsAfterCaus, nStringsAfterTFilter, nTrackHits;
 double energy,theta,phi,mcEnergy,mcTheta,mcPhi;
@@ -129,6 +129,8 @@ struct RunInfo
 	int m_Nentries, m_NFil, m_SixThreeFil, m_QFilChi2, m_TFil, m_TFilChi2, m_LikelihoodFit;
 	int m_CustomFil;
 };
+
+vector<RunInfo> runs;
 
 //getting data from global variables to objects
 void ParseEvent(Event& ev)
@@ -303,6 +305,17 @@ void DrawResults(int val)
 		x.second->GetXaxis()->SetTimeFormat("%m");
 		x.second->Draw("nostack");
   		gPad->BuildLegend(0.75,0.75,0.95,0.95,"");	
+	}
+
+	for(auto const& x : flux_graphs)
+	{
+		TString season  = x.first(1,4);
+		TString cluster = x.first(0,1);
+
+		TString canvas_title = "Cascade flux year " + season + " cluster " + cluster;
+
+		flux_canv[x.first] = new TCanvas(x.first,canvas_title,800,600);
+		x.second->Draw();
 	}
 }
 
@@ -622,10 +635,9 @@ void InputLong(ifstream& inf, string& variable)
 }
 
 //load info about runs into vector from log files
-vector<RunInfo> parseRuns(const string& path)
+void parseRuns(vector<RunInfo>& dataOut, const string& path)
 {
 	ifstream inf{path};
-	vector<RunInfo> dataOut;
 
 	if(!inf) cout << "File: " << path << " was not found!" << endl;
 	else     cout << "Parsing file " << path << endl;
@@ -690,14 +702,24 @@ vector<RunInfo> parseRuns(const string& path)
 				int ATF2   = stoi(AfterTFilterChi2);
 				int ALF    = stoi(AfterLikelihoodFitter);
 
-				dataOut.emplace_back(RunInfo{sID,cID,rID,rT,N,ANF,ASTF,AQF2,ATF,ATF2,ALF});
+				dataOut.emplace_back(RunInfo{sID,cID,rID,rT,N,ANF,ASTF,AQF2,ATF,ATF2,ALF,0});
 			}
 		}
 	}
 
 	// for(const RunInfo& ri : dataOut) cout << ri;
+}
 
-	return dataOut;
+//returns index of given run in vector of RunInfo
+int FindRunInfo(int seasonID, int clusterID, int runID)
+{
+	for(int i = 0; i < runs.size(); i++)
+	{
+		if((runs[i].m_seasonID == seasonID) and (runs[i].m_clusterID == clusterID) and (runs[i].m_runID == runID))
+			return i;
+	}
+
+	return -1;
 }
 
 int cascade_flux(int val = 0, int year = -1, int cluster = -1)
@@ -764,27 +786,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 			path += to_string(i);
 			path += ".log";
 
-			vector<RunInfo> runs = parseRuns(path);
-
-			if(runs.size() != 0)
-			{				
-				TGraph* graph = new TGraph();
-
-				TString graph_title = Form("Cascade flux year 20%d cluster %d;RunID;Cascades per day",j,i);
-
-				graph->SetTitle(graph_title);
-				graph->SetName(Form("g_cascFlux_y%dc%d",j,i));
-
-				for(const RunInfo& rinfo : runs) 
-				{
-					//if(rinfo.m_LikelihoodFit/rinfo.m_runTime > 500) cout << rinfo;
-					graph->SetPoint(graph->GetN(),(double)rinfo.m_runID,rinfo.m_LikelihoodFit/rinfo.m_runTime);
-				}
-				
-				TCanvas* c = new TCanvas();
-				c->SetTitle(Form("Cascade flux year 20%d cluster %d",j,i));
-				graph->Draw("A*");
-			}
+			parseRuns(runs,path);
 		}
 	}
 
@@ -886,20 +888,25 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 		nProcessedEvents++;
 		filteredCascades->Fill();
 
+		//event before 01/01/2016 warning
+		if(eventTime->GetSec() < 1451606400)
+		{
+			cout << "Event " << eventID << " has low eventTime: ";
+			eventTime->Print();
+			cout << " seasonID: " << seasonID << " clusterID: " << clusterID << " runID: " << runID << "\n";
+		}
+
+		//update runInfo
+		int run_index = FindRunInfo(seasonID,clusterID,runID);
+
+		if(run_index != -1) runs[run_index].m_CustomFil++;
+		//else cout << "No info available for run " << runID << " from cluster " << clusterID << " from season " << seasonID << "." << endl;
+
 		//key for histogram identification
 		TString hist_key = to_string(clusterID)+to_string(seasonID);
 
-		//event before 01/01/2016 warning
-		if(eventTime->GetSec() < 1451606400)
-			cout << "Event " << eventID << " has low eventTime: " << *eventTime << " seasonID: " << seasonID << " clusterID: " << clusterID << " runID: " << runID << "\n";
-
 		//if histogram with given key does not exist, create one, fill histogram
-		if(flux_hist.find(hist_key)!=flux_hist.end())
-		{
-			flux_hist[hist_key]->Fill(eventTime->GetSec()-unix1995-GetStartTime(seasonID)+GetStartTime(2016)); //1970 unix to 1995 unix
-		}
-
-		else
+		if(flux_hist.find(hist_key)==flux_hist.end())
 		{
 			TString hist_name = Form("h_cascFlux_y%dc%d",seasonID-2000,clusterID);
 			flux_hist[hist_key] = new TH1F(hist_name,hist_name(11,5)+"; Month; NoE [#]",50,GetStartTime(2016),GetEndTime(2016));
@@ -912,14 +919,33 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 			flux_hist[hist_key]->SetLineColor(color);	
 
-			flux_hist[hist_key]->Fill(eventTime->GetSec()-unix1995-GetStartTime(seasonID)+GetStartTime(2016)); //1970 unix to 1995 unix
-
 			cout << "Year: " << seasonID << " Cluster: " << clusterID << "\n";
 		}
+
+		flux_hist[hist_key]->Fill(eventTime->GetSec()-unix1995-GetStartTime(seasonID)+GetStartTime(2016)); //1970 unix to 1995 unix
 
 		Event ev;
 		ParseEvent(ev);
 		sortedEvents.push_back(ev);
+	}
+
+	//making graphs from logs (and CustomCut events)
+	for(const RunInfo& rinfo : runs)
+	{
+		//if(rinfo.m_LikelihoodFit/rinfo.m_runTime > 500) cout << rinfo;
+
+		TString graph_key = to_string(rinfo.m_clusterID) + to_string(rinfo.m_seasonID);
+
+		if(flux_graphs.find(graph_key) == flux_graphs.end())
+		{
+			flux_graphs[graph_key] = new TGraph();
+
+			TString graph_title = Form("Cascade flux year %d cluster %d;RunID;Cascades per day",rinfo.m_seasonID,rinfo.m_clusterID);
+			flux_graphs[graph_key]->SetTitle(graph_title);
+			flux_graphs[graph_key]->SetName(Form("g_cascFlux_y%dc%d",rinfo.m_seasonID-2000,rinfo.m_clusterID));
+		}
+
+		flux_graphs[graph_key]->SetPoint(flux_graphs[graph_key]->GetN(),rinfo.m_runID,rinfo.m_CustomFil/rinfo.m_runTime);
 	}
 	
 	QuickSort(sortedEvents);
@@ -932,7 +958,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 	gStyle->SetOptStat(111111);
 
-	// DrawResults(val);
+	DrawResults(val);
 	// SaveResults(year,cluster);
 
 	cout << "nProcessedEvents: " << nProcessedEvents << endl;
