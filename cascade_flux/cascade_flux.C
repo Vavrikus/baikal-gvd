@@ -776,11 +776,16 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	}
 
 	//read run logs
+	cout << "\n";
+	
 	for (int j = startSeason; j < endSeason; ++j)
 	{
 		for (int i = startID; i < endID; ++i)
 		{
-			string path = "/home/vavrik/work/Baikal-GVD/cascade_flux/logs/programOutput_";
+			string path;
+			if(val == 0) path = "/home/vavrik/work/Baikal-GVD/cascade_flux/logs/programOutput_";
+			if(val == 1) path = "/home/vavrik/storage/casc_flux/logs/programOutput_";
+
 			path += to_string(j);
 			path += "_";
 			path += to_string(i);
@@ -959,7 +964,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	gStyle->SetOptStat(111111);
 
 	DrawResults(val);
-	// SaveResults(year,cluster);
+	SaveResults(year,cluster);
 
 	cout << "nProcessedEvents: " << nProcessedEvents << endl;
 	TString outputFileName = Form("filteredCascades_y%dc%d.root",year,cluster);
