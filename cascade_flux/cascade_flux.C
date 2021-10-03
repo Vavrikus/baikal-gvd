@@ -19,6 +19,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <queue>
 
 #define DEBUG() cout << "Current Line: " << __LINE__ << endl;
 
@@ -76,7 +77,7 @@ int unix1995 = 788918400;
 map<TString,TH1F*> flux_hist;
 map<TString,THStack*> flux_stack;
 map<TString,TCanvas*> flux_canv;
-map<TString,TGraph*> flux_graphs;
+map<TString,tuple<TGraph*,TGraph*>> flux_graphs;
 
 int seasonID, clusterID, runID, eventID, nHits, nHitsAfterCaus, nHitsAfterTFilter, nStringsAfterCaus, nStringsAfterTFilter, nTrackHits;
 double energy,theta,phi,mcEnergy,mcTheta,mcPhi;
@@ -313,9 +314,11 @@ void DrawResults(int val)
 		TString cluster = x.first(0,1);
 
 		TString canvas_title = "Cascade flux year " + season + " cluster " + cluster;
+		TString canvas_name  = "c_fluxGraph_y" + season(2,2) + "c" + cluster;
 
-		flux_canv[x.first] = new TCanvas(x.first,canvas_title,800,600);
-		x.second->Draw();
+		flux_canv[x.first] = new TCanvas(canvas_name,canvas_title,800,600);
+		get<0>(x.second)->Draw();
+		get<1>(x.second)->Draw("same");
 	}
 }
 
@@ -497,12 +500,14 @@ void FindCoincidences(bool(*IsCoin)(int, int, args...), args... a)
 		for(int i = 0; i < sortedEvents.size()-1; ++i)
 		{
 			long int previousTime = sortedEvents[i].m_eventTime.GetSec();
+			//for random coincidences shift here ^
 
 			shared_ptr<Coincidence> c = make_shared<Coincidence>();
 
 			bool IsCoincidence = false;
 			int currentID = sortedEvents[i].m_coincidenceID;
 
+			//for random coincidences go from zero, skip i=j, skip events with lower time
 			for (int j = i+1; j < sortedEvents.size(); ++j) //searching events coinciding with event i
 			{
 				if(IsCoin(i,j,a...))
@@ -525,14 +530,14 @@ void FindCoincidences(bool(*IsCoin)(int, int, args...), args... a)
 							c->AddEvent(j);
 						}
 
-						else //matched existing coincidence
-						{
-							currentID = sortedEvents[j].m_coincidenceID;
-							int currentID_index = FindCID(currentID);
+						// else //matched existing coincidence
+						// {
+						// 	currentID = sortedEvents[j].m_coincidenceID;
+						// 	int currentID_index = FindCID(currentID);
 
-							if(!IsCoincidence) coincidences[currentID_index]->AddEvent(i);
-							else for(int e : c->m_indexes) coincidences[currentID_index]->AddEvent(e);
-						}
+						// 	if(!IsCoincidence) coincidences[currentID_index]->AddEvent(i);
+						// 	else for(int e : c->m_indexes) coincidences[currentID_index]->AddEvent(e);
+						// }
 					}
 
 					else
@@ -543,20 +548,20 @@ void FindCoincidences(bool(*IsCoin)(int, int, args...), args... a)
 							coincidences[currentID_index]->AddEvent(j);
 						}
 
-						else if(sortedEvents[j].m_coincidenceID != currentID) //merging coincidences
-						{
-							int minID = min(currentID, sortedEvents[j].m_coincidenceID);
-							int maxID = max(currentID, sortedEvents[j].m_coincidenceID);
-							currentID = minID;
+						// else if(sortedEvents[j].m_coincidenceID != currentID) //merging coincidences
+						// {
+						// 	int minID = min(currentID, sortedEvents[j].m_coincidenceID);
+						// 	int maxID = max(currentID, sortedEvents[j].m_coincidenceID);
+						// 	currentID = minID;
 
-							int minID_index = FindCID(minID);
-							int maxID_index = FindCID(maxID);
+						// 	int minID_index = FindCID(minID);
+						// 	int maxID_index = FindCID(maxID);
 
-							for(int e : coincidences[maxID_index]->m_indexes)
-								coincidences[minID_index]->AddEvent(e);
+						// 	for(int e : coincidences[maxID_index]->m_indexes)
+						// 		coincidences[minID_index]->AddEvent(e);
 
-							coincidences.erase(coincidences.begin()+maxID_index);
-						}
+						// 	coincidences.erase(coincidences.begin()+maxID_index);
+						// }
 					}					
 				}
 			}
@@ -777,7 +782,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 	//read run logs
 	cout << "\n";
-	
+
 	for (int j = startSeason; j < endSeason; ++j)
 	{
 		for (int i = startID; i < endID; ++i)
@@ -935,6 +940,8 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	}
 
 	//making graphs from logs (and CustomCut events)
+	vector<vector<const RunInfo*>> plotruns;
+
 	for(const RunInfo& rinfo : runs)
 	{
 		//if(rinfo.m_LikelihoodFit/rinfo.m_runTime > 500) cout << rinfo;
@@ -943,15 +950,61 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 		if(flux_graphs.find(graph_key) == flux_graphs.end())
 		{
-			flux_graphs[graph_key] = new TGraph();
+			TGraph* runs = new TGraph();
+			TGraph* saverage = new TGraph();
+
+			flux_graphs[graph_key] = make_tuple(runs,saverage);
 
 			TString graph_title = Form("Cascade flux year %d cluster %d;RunID;Cascades per day",rinfo.m_seasonID,rinfo.m_clusterID);
-			flux_graphs[graph_key]->SetTitle(graph_title);
-			flux_graphs[graph_key]->SetName(Form("g_cascFlux_y%dc%d",rinfo.m_seasonID-2000,rinfo.m_clusterID));
+			runs->SetTitle(graph_title);
+			runs->SetName(Form("g_cascFlux_y%dc%d",rinfo.m_seasonID-2000,rinfo.m_clusterID));
+
+			saverage->SetName(Form("g2_cascFlux_y%dc%d",rinfo.m_seasonID-2000,rinfo.m_clusterID));
+			saverage->SetLineColor(kRed);
+
+			plotruns.push_back(vector<const RunInfo*>());
 		}
 
-		flux_graphs[graph_key]->SetPoint(flux_graphs[graph_key]->GetN(),rinfo.m_runID,rinfo.m_CustomFil/rinfo.m_runTime);
+		get<0>(flux_graphs[graph_key])->SetPoint(get<0>(flux_graphs[graph_key])->GetN(),
+										rinfo.m_runID,rinfo.m_CustomFil/rinfo.m_runTime);
+		plotruns.back().push_back(&rinfo);
 	}
+
+	
+	deque<tuple<double,double,double>> avg; //queue for sliding average (x,custom,runtime)
+
+	for(auto vec : plotruns) for(auto rinfo : vec)
+	{
+		TString graph_key = to_string(rinfo->m_clusterID) + to_string(rinfo->m_seasonID);
+
+		int n_avg = 10;
+
+		avg.push_back(make_tuple(rinfo->m_runID,rinfo->m_CustomFil,rinfo->m_runTime));
+		
+		//cout << "almost there, deque size: " << avg.size() <<"\n";
+		if(avg.size() == n_avg) 
+		{
+			avg.pop_front();
+
+			double newX       = 0;
+			double newCustom  = 0;
+			double newRunTime = 0;
+
+			for(auto x : avg)
+			{
+				newX 	   += get<0>(x);
+				newCustom  += get<1>(x);
+				newRunTime += get<2>(x);
+			}
+
+			newX = newX/n_avg;
+
+			//cout << "adding point\n";
+			get<1>(flux_graphs[graph_key])->SetPoint(get<1>(flux_graphs[graph_key])->GetN(),
+											newX,newCustom/newRunTime);
+		}
+	}
+
 	
 	QuickSort(sortedEvents);
 
