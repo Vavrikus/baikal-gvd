@@ -961,6 +961,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 			saverage->SetName(Form("g2_cascFlux_y%dc%d",rinfo.m_seasonID-2000,rinfo.m_clusterID));
 			saverage->SetLineColor(kRed);
+			saverage->SetLineWidth(4);
 
 			plotruns.push_back(vector<const RunInfo*>());
 		}
@@ -970,38 +971,44 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 		plotruns.back().push_back(&rinfo);
 	}
 
-	
-	deque<tuple<double,double,double>> avg; //queue for sliding average (x,custom,runtime)
 
-	for(auto vec : plotruns) for(auto rinfo : vec)
+	for(auto vec : plotruns) 
 	{
-		TString graph_key = to_string(rinfo->m_clusterID) + to_string(rinfo->m_seasonID);
-
-		int n_avg = 10;
-
-		avg.push_back(make_tuple(rinfo->m_runID,rinfo->m_CustomFil,rinfo->m_runTime));
+		deque<tuple<double,double,double>> avg; //queue for sliding average (x,custom,runtime)
 		
-		//cout << "almost there, deque size: " << avg.size() <<"\n";
-		if(avg.size() == n_avg) 
+		for(auto rinfo : vec)
 		{
-			avg.pop_front();
+			// cout << *rinfo;
+			TString graph_key = to_string(rinfo->m_clusterID) + to_string(rinfo->m_seasonID);
 
-			double newX       = 0;
-			double newCustom  = 0;
-			double newRunTime = 0;
+			int n_avg = 10;
 
-			for(auto x : avg)
+			avg.push_back(make_tuple(rinfo->m_runID,rinfo->m_CustomFil,rinfo->m_runTime));
+			
+			//cout << "almost there, deque size: " << avg.size() <<"\n";
+			if(avg.size() == n_avg+1) 
 			{
-				newX 	   += get<0>(x);
-				newCustom  += get<1>(x);
-				newRunTime += get<2>(x);
+				avg.pop_front();
+
+				double newX       = 0;
+				double newCustom  = 0;
+				double newRunTime = 0;
+
+				for(auto x : avg)
+				{
+					// cout << "x: " << get<0>(x) << endl;
+					newX 	   += get<0>(x);
+					newCustom  += get<1>(x);
+					newRunTime += get<2>(x);
+				}
+
+				newX = newX/n_avg;
+
+				// cout << "adding point\n";
+				// cout << "X: " << newX << "\n";
+				get<1>(flux_graphs[graph_key])->SetPoint(get<1>(flux_graphs[graph_key])->GetN(),
+												newX,newCustom/newRunTime);
 			}
-
-			newX = newX/n_avg;
-
-			//cout << "adding point\n";
-			get<1>(flux_graphs[graph_key])->SetPoint(get<1>(flux_graphs[graph_key])->GetN(),
-											newX,newCustom/newRunTime);
 		}
 	}
 
