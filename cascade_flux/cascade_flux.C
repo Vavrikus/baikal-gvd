@@ -979,7 +979,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 		sortedEvents.push_back(ev);
 	}
 
-	cout << "Min time: " << minTime << " Max time: " << maxTime << " Days: " << (maxTime-minTime)/86400.0 << endl;
+	//cout << "Min time: " << minTime << " Max time: " << maxTime << " Days: " << (maxTime-minTime)/86400.0 << endl;
 }
 
 
