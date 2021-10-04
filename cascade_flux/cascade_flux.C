@@ -21,6 +21,9 @@
 #include <string>
 #include <queue>
 
+#define PROFILLING 0
+#include "../Instrumentor.h"
+
 #define DEBUG() cout << "Current Line: " << __LINE__ << endl;
 
 using namespace std;
@@ -590,6 +593,8 @@ bool IsTRPC(int i, int j, long int maxTimeDiff = 3600, double maxDist = 5)
 
 void WarnLEDMatrixRun(int minCoinSize = 3, long int maxTimeDiff = 3600, double maxDist = 5)
 {
+	PROFILE_FUNCTION();
+
 	cout << "\nPossible LED matrix runs detected:\n  coincidences with ";
 	cout << minCoinSize << " or more events\n  position difference max ";
 	cout << maxDist <<" meters\n  time difference max " << maxTimeDiff << " seconds\n";
@@ -729,6 +734,12 @@ int FindRunInfo(int seasonID, int clusterID, int runID)
 
 int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 {
+#if PROFILLING
+	Instrumentor::Get().BeginSession("Session Name");
+#endif
+{
+	PROFILE_SCOPE("MAIN");
+
 	int LCut;
 	long int maxTimeDiff;
 
@@ -757,6 +768,9 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	//path to data folder
 	const char* env_p = val==1?"/home/vavrik/bajkal/recoCascades/v1.2":"/home/vavrik/work/data";
 
+{
+	PROFILE_SCOPE("Fetch reco");
+
 	for (int j = startSeason; j < endSeason; j++)
 	{
 		for (int i = startID; i < endID; ++i)
@@ -779,9 +793,13 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 			gSystem->FreeDirectory(dir);
 		}
 	}
+}
 
 	//read run logs
 	cout << "\n";
+
+{
+	PROFILE_SCOPE("Fetch logs");
 
 	for (int j = startSeason; j < endSeason; ++j)
 	{
@@ -799,6 +817,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 			parseRuns(runs,path);
 		}
 	}
+}
 
 	TTree* filteredCascades = new TTree("filteredCascades","Filtered Cascades");
 
@@ -875,8 +894,27 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 	sortedEvents.reserve(nRecCasc);
 
+{
+	PROFILE_SCOPE("Filter cascades");
+
+	// int minTime = -1;
+	// int maxTime = -1;
+
 	for (int i = 0; i < reconstructedCascades.GetEntries(); ++i)
 	{
+		// if(runID == 144)
+		// {
+		// 	int currentTime = eventTime->GetSec();
+		// 	if(minTime == -1)
+		// 	{
+		// 		minTime = currentTime;
+		// 		maxTime = currentTime;
+		// 	}
+
+		// 	if(currentTime < minTime) minTime = currentTime;
+		// 	if(currentTime > maxTime) maxTime = currentTime;
+		// }
+
 		if(floor(10*i/nRecCasc) != floor(10*(i-1)/nRecCasc)) 
 			cout << "Filtering cascades progress: " << floor((100.0*i)/nRecCasc) << "%" << endl;
 		if(i == nRecCasc-1) cout << "Filtering cascades progress: 100%" << endl;
@@ -915,6 +953,8 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 		//key for histogram identification
 		TString hist_key = to_string(clusterID)+to_string(seasonID);
 
+		PROFILE_SCOPE("Histograms");
+
 		//if histogram with given key does not exist, create one, fill histogram
 		if(flux_hist.find(hist_key)==flux_hist.end())
 		{
@@ -939,9 +979,14 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 		sortedEvents.push_back(ev);
 	}
 
+	cout << "Min time: " << minTime << " Max time: " << maxTime << " Days: " << (maxTime-minTime)/86400.0 << endl;
+}
+
+
 	//making graphs from logs (and CustomCut events)
 	vector<vector<const RunInfo*>> plotruns;
-
+{
+	PROFILE_SCOPE("Log graphs");
 	for(const RunInfo& rinfo : runs)
 	{
 		//if(rinfo.m_LikelihoodFit/rinfo.m_runTime > 500) cout << rinfo;
@@ -975,7 +1020,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	for(auto vec : plotruns) 
 	{
 		deque<tuple<double,double,double>> avg; //queue for sliding average (x,custom,runtime)
-		
+
 		for(auto rinfo : vec)
 		{
 			// cout << *rinfo;
@@ -1011,6 +1056,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 			}
 		}
 	}
+}
 
 	
 	QuickSort(sortedEvents);
@@ -1033,6 +1079,11 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	newFile->Close();
 
 	//for(auto ev : sortedEvents) cout << ev << "\n";
+}
+
+#if PROFILLING
+	Instrumentor::Get().EndSession();
+#endif
 
 	return 0;
 }
