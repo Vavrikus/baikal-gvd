@@ -1,6 +1,8 @@
 #include "MCevents.h"
 #include "../threading.h"
 #include "../transformations.h"
+
+#define PROFILLING 0
 #include "../Instrumentor.h"
 
 #include <fstream>
@@ -10,8 +12,6 @@
 #include "TRandom3.h"
 #include "TTree.h"
 #include "TVirtualFitter.h"
-
-#define PROFILLING 0
 
 static std::vector<MCEvent> fitData;
 static TVirtualFitter* gFitter;
@@ -286,7 +286,7 @@ void fit(double& nSignal, double& nSignalSigma)
 // ./testMC outpath backCount signalCount timeWindow timeSigma posSigma (numOfSimulations = 10000)
 int main(int argc, char** argv)
 {
-#if PROFILING
+#if PROFILLING
 	Instrumentor::Get().BeginSession("Session Name");
 #endif
 	{
@@ -331,7 +331,7 @@ int main(int argc, char** argv)
 			outf << testStatistic(nSignal) << '\n';
 		}
 	}
-#if PROFILING
+#if PROFILLING
 	Instrumentor::Get().EndSession();
 #endif
 
