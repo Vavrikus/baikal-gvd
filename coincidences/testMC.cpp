@@ -1,7 +1,7 @@
 #include "MCevents.h"
-#include "threading.h"
-#include "transformations.h"
-#include "Instrumentor.h"
+#include "../threading.h"
+#include "../transformations.h"
+#include "../Instrumentor.h"
 
 #include <fstream>
 

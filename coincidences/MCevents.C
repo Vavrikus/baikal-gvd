@@ -1,6 +1,6 @@
-#include "transformations.h"
+#include "../transformations.h"
 #include "MCevents.h"
-#include "threading.h"
+#include "../threading.h"
 
 #include "TRandom2.h"
 #include "TF1.h"
