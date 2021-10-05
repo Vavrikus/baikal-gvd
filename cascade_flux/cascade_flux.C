@@ -247,7 +247,7 @@ std::ostream& operator<<(std::ostream& stream, const Coincidence& c)
 
 	stream << minAngDist << "\n\n";
 
-	for(int ev_index : c.m_indexes) stream << sortedEvents[ev_index] << "\n\n";
+	for(int ev_index : c.m_indexes) stream << sortedEvents[ev_index] << "\n" << endl;
 
     return stream;
 }
@@ -543,29 +543,29 @@ void FindCoincidences(bool(*IsCoin)(int, int, args...), args... a)
 						// }
 					}
 
-					else
-					{
-						if(sortedEvents[j].m_coincidenceID == -1) //adding to existing coincidence
-						{
-							int currentID_index = FindCID(currentID);
-							coincidences[currentID_index]->AddEvent(j);
-						}
+					// else
+					// {
+					// 	if(sortedEvents[j].m_coincidenceID == -1) //adding to existing coincidence
+					// 	{
+					// 		int currentID_index = FindCID(currentID);
+					// 		coincidences[currentID_index]->AddEvent(j);
+					// 	}
 
-						// else if(sortedEvents[j].m_coincidenceID != currentID) //merging coincidences
-						// {
-						// 	int minID = min(currentID, sortedEvents[j].m_coincidenceID);
-						// 	int maxID = max(currentID, sortedEvents[j].m_coincidenceID);
-						// 	currentID = minID;
+					// 	else if(sortedEvents[j].m_coincidenceID != currentID) //merging coincidences
+					// 	{
+					// 		int minID = min(currentID, sortedEvents[j].m_coincidenceID);
+					// 		int maxID = max(currentID, sortedEvents[j].m_coincidenceID);
+					// 		currentID = minID;
 
-						// 	int minID_index = FindCID(minID);
-						// 	int maxID_index = FindCID(maxID);
+					// 		int minID_index = FindCID(minID);
+					// 		int maxID_index = FindCID(maxID);
 
-						// 	for(int e : coincidences[maxID_index]->m_indexes)
-						// 		coincidences[minID_index]->AddEvent(e);
+					// 		for(int e : coincidences[maxID_index]->m_indexes)
+					// 			coincidences[minID_index]->AddEvent(e);
 
-						// 	coincidences.erase(coincidences.begin()+maxID_index);
-						// }
-					}					
+					// 		coincidences.erase(coincidences.begin()+maxID_index);
+					// 	}
+					// }					
 				}
 			}
 
