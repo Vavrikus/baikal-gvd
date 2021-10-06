@@ -70,7 +70,7 @@ std::vector<MCEvent>* getBackround(double MJDstart, double timeWindow, int numEv
 	double minEnergy = 1;
 	double maxEnergy = 10000000;
 
-	#if PROFILING
+	#if PROFILLING
 		InstrumentationTimer t("Setting up energy distribution");
 	#endif
 	//energy distrubution for atmospheric neutrinos
@@ -79,11 +79,11 @@ std::vector<MCEvent>* getBackround(double MJDstart, double timeWindow, int numEv
 	double power = -3.7; //-3.7 for atmospheric neutrinos
 	energyDist->SetParameter(1,power);
 
-	#if PROFILING
+	#if PROFILLING
 		t.Stop();
 	#endif
 
-	#if PROFILING
+	#if PROFILLING
 		InstrumentationTimer t2("Setting up altitude distribution");
 	#endif
 	//altitude distribution for uniform position distribution
@@ -92,7 +92,7 @@ std::vector<MCEvent>* getBackround(double MJDstart, double timeWindow, int numEv
 	//normalization (unnecesary, only for plotting)
 	double area  = powerLawArea(power, minEnergy, maxEnergy);
 	energyDist->SetParameter(0,1/area);
-	#if PROFILING
+	#if PROFILLING
 		t2.Stop();
 	#endif
 
