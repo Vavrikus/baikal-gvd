@@ -470,17 +470,22 @@ void WriteCStats()
 }
 
 //returns if events with indexes i,j are part coincidence with given time and angle differences
-bool IsTAC(int i, int j, long int maxTimeDiff, double maxAngDist = 360)
+//and if both events have greater energy (TeV) than given 
+bool IsTAEC(int i, int j, long int maxTimeDiff, double maxAngDist = 360, double minEnergy = 0)
 {
-	return (sortedEvents[j].m_eventTime.GetSec() - sortedEvents[i].m_eventTime.GetSec() <= maxTimeDiff) and 
-				   (sortedEvents[i].angDist(sortedEvents[j]) <= maxAngDist);
+	bool timeOK   = sortedEvents[j].m_eventTime.GetSec() - sortedEvents[i].m_eventTime.GetSec() <= maxTimeDiff;
+	bool angleOK  = sortedEvents[i].angDist(sortedEvents[j]) <= maxAngDist;
+	bool energyOK = (sortedEvents[i].m_energy >= minEnergy) and (sortedEvents[j].m_energy >= minEnergy);
+	
+	return timeOK and angleOK and energyOK;
 }
 
 //writes coincidences with stats into console
-void WriteTAC(long int maxTimeDiff, double maxAngDist = 360)
+void WriteTAEC(long int maxTimeDiff, double maxAngDist = 360, double minEnergy = 0)
 {	
 	cout << "\n\nCoincidences with maximal time difference " << maxTimeDiff;
-	cout << " seconds and maximal distance " << maxAngDist << " degrees:" << endl;
+	cout << " seconds, maximal distance " << maxAngDist << " degrees\n";
+	cout << "and minimal energy " << minEnergy << ":\n" << endl;
 	for(auto const& c : coincidences) cout << *c;
 
 	WriteCStats();
@@ -576,7 +581,7 @@ void FindCoincidences(bool(*IsCoin)(int, int, args...), args... a)
 
 	for(shared_ptr<Coincidence> c : coincidences) sort(c->m_indexes.begin(),c->m_indexes.end());
 
-	if(IsCoin == IsTAC) WriteTAC(a...);
+	if((void*)IsCoin == (void*)IsTAEC) WriteTAEC(a...);
 }
 
 //returns if events with indexes i,j satisfy time, run and position criterions
@@ -1061,9 +1066,9 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	
 	QuickSort(sortedEvents);
 
-	// FindCoincidences(IsTAC,maxTimeDiff,360.0);
-	// FindCoincidences(IsTAC,maxTimeDiff,20.0);
-	// FindCoincidences(IsTAC,maxTimeDiff,10.0);
+	FindCoincidences(IsTAEC,maxTimeDiff,360.0,20.0);
+	FindCoincidences(IsTAEC,maxTimeDiff,20.0,20.0);
+	FindCoincidences(IsTAEC,maxTimeDiff,10.0,20.0);
 
 	WarnLEDMatrixRun();
 
