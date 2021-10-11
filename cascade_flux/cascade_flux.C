@@ -494,7 +494,7 @@ void WriteTAEC(long int maxTimeDiff, double maxAngDist = 360, double minEnergy =
 //writes warning if two or more cascades are separated by smaller than selected amount of time
 //and smaler than selected angle, saves coincidences into a vector
 template<typename... args>
-void FindCoincidences(bool(*IsCoin)(int, int, args...), args... a)
+void FindCoincidences(bool(*IsCoin)(int, int, args...), bool random, args... a)
 {
 	int numOfCoincidences = 0; //number of created coincidences, may be bigger than actual count
 
@@ -507,74 +507,76 @@ void FindCoincidences(bool(*IsCoin)(int, int, args...), args... a)
 	{
 		for(int i = 0; i < sortedEvents.size()-1; ++i)
 		{
-			long int previousTime = sortedEvents[i].m_eventTime.GetSec();
-			//for random coincidences shift here ^
-
 			shared_ptr<Coincidence> c = make_shared<Coincidence>();
 
 			bool IsCoincidence = false;
 			int currentID = sortedEvents[i].m_coincidenceID;
 
-			//for random coincidences go from zero, skip i=j, skip events with lower time
-			for (int j = i+1; j < sortedEvents.size(); ++j) //searching events coinciding with event i
+			int startEvent;
+			int random_offset = 7200;
+
+			//if random time shift is applied, find first later event and set it as start 
+			if(random)
 			{
-				if(IsCoin(i,j,a...))
+				//add random shift
+				//cout << "old " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";
+				sortedEvents[i].m_eventTime.SetSec(sortedEvents[i].m_eventTime.GetSec()+random_offset);
+				//cout << "new " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";
+
+				int lower_bound  = i;
+				int higher_bound = sortedEvents.size()-1;
+
+				while(lower_bound != higher_bound-1)
+				{
+					int mid = floor((higher_bound+lower_bound)/2.0);
+					//cout << lower_bound << " " << mid << " " << higher_bound << endl;
+					if(sortedEvents[i].m_eventTime.GetSec() > sortedEvents[mid].m_eventTime.GetSec())
+						lower_bound = mid;
+					else higher_bound = mid;
+				}
+
+				//if should not happen for good shift
+				if(higher_bound == i) 
+				{
+					startEvent = i+1;
+					cout << "WARNING: Random shift insufficient.";
+				}
+
+				else startEvent = higher_bound;
+				//cout << "startEvent " << startEvent << " " << sortedEvents[startEvent].m_eventTime.GetSec() << "\n";
+			}
+
+			else startEvent = i+1;
+
+			//searching events coinciding with event i
+			for (int j = startEvent; j < sortedEvents.size(); ++j)
+			{
+				if(IsCoin(i,j,a...) and (currentID == -1) and (sortedEvents[j].m_coincidenceID == -1))
 				{	
-					if(currentID == -1)
+					if(!IsCoincidence)
 					{
-						if(sortedEvents[j].m_coincidenceID == -1) //potential new coincidence
-						{
-							if(!IsCoincidence)
-							{
-								IsCoincidence = true;
+						IsCoincidence = true;
 
-								c->m_indexes.clear();
-								c->m_id = numOfCoincidences;
-								c->AddEvent(i);
+						c->m_indexes.clear();
+						c->m_id = numOfCoincidences;
+						c->AddEvent(i);
 
-								numOfCoincidences++;
-							}
-
-							c->AddEvent(j);
-						}
-
-						// else //matched existing coincidence
-						// {
-						// 	currentID = sortedEvents[j].m_coincidenceID;
-						// 	int currentID_index = FindCID(currentID);
-
-						// 	if(!IsCoincidence) coincidences[currentID_index]->AddEvent(i);
-						// 	else for(int e : c->m_indexes) coincidences[currentID_index]->AddEvent(e);
-						// }
+						numOfCoincidences++;
 					}
 
-					// else
-					// {
-					// 	if(sortedEvents[j].m_coincidenceID == -1) //adding to existing coincidence
-					// 	{
-					// 		int currentID_index = FindCID(currentID);
-					// 		coincidences[currentID_index]->AddEvent(j);
-					// 	}
-
-					// 	else if(sortedEvents[j].m_coincidenceID != currentID) //merging coincidences
-					// 	{
-					// 		int minID = min(currentID, sortedEvents[j].m_coincidenceID);
-					// 		int maxID = max(currentID, sortedEvents[j].m_coincidenceID);
-					// 		currentID = minID;
-
-					// 		int minID_index = FindCID(minID);
-					// 		int maxID_index = FindCID(maxID);
-
-					// 		for(int e : coincidences[maxID_index]->m_indexes)
-					// 			coincidences[minID_index]->AddEvent(e);
-
-					// 		coincidences.erase(coincidences.begin()+maxID_index);
-					// 	}
-					// }					
+					c->AddEvent(j);					
 				}
 			}
 
-			if(IsCoincidence and (currentID == -1)) coincidences.push_back(c); //adding new coincidence
+			//adding new coincidence
+			if(IsCoincidence and (currentID == -1)) coincidences.push_back(c);
+
+			if(random) //remove random shift
+			{
+				//cout << "old2 " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";				
+				sortedEvents[i].m_eventTime.SetSec(sortedEvents[i].m_eventTime.GetSec()-random_offset);
+				//cout << "new2 " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";
+			}
 		}
 	}
 
@@ -607,7 +609,7 @@ void WarnLEDMatrixRun(int minCoinSize = 3, long int maxTimeDiff = 3600, double m
 
 	bool noLEDRunsDetected = true;
 
-	FindCoincidences(IsTRPC,maxTimeDiff,maxDist);
+	FindCoincidences(IsTRPC,false,maxTimeDiff,maxDist);
 
 	for(shared_ptr<Coincidence> c : coincidences)
 	{
@@ -1066,9 +1068,9 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	
 	QuickSort(sortedEvents);
 
-	FindCoincidences(IsTAEC,maxTimeDiff,360.0,20.0);
-	FindCoincidences(IsTAEC,maxTimeDiff,20.0,20.0);
-	FindCoincidences(IsTAEC,maxTimeDiff,10.0,20.0);
+	FindCoincidences(IsTAEC,true,maxTimeDiff,360.0,20.0);
+	FindCoincidences(IsTAEC,true,maxTimeDiff,20.0,20.0);
+	FindCoincidences(IsTAEC,true,maxTimeDiff,10.0,20.0);
 
 	WarnLEDMatrixRun();
 
