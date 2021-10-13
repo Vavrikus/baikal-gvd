@@ -77,6 +77,8 @@ vector<vector<vector<int>>> ledMatrixRuns = {{{2,3,4,5,6,7,8,9,10,11,118,119,177
 
 int unix1995 = 788918400;
 
+TH2F* random_coincidences = new TH2F("ran_coin","Random coincidences",250,0,0,4,0,0);
+
 map<TString,TH1F*> flux_hist;
 map<TString,THStack*> flux_stack;
 map<TString,TCanvas*> flux_canv;
@@ -462,6 +464,7 @@ void WriteCStats()
 	cout << "=============\n";
 	for (int i = 0; i < counts.size(); ++i)
 	{
+		random_coincidences->Fill(counts[i],i+2);
 		if(i < 8)       cout << i+2 << "      " << counts[i] << "\n";
 		else if(i < 98) cout << i+2 << "     " << counts[i] << "\n";
 		else            cout << i+2 << "    " << counts[i] << "\n";
@@ -485,7 +488,7 @@ void WriteTAEC(long int maxTimeDiff, double maxAngDist = 360, double minEnergy =
 {	
 	cout << "\n\nCoincidences with maximal time difference " << maxTimeDiff;
 	cout << " seconds, maximal distance " << maxAngDist << " degrees\n";
-	cout << "and minimal energy " << minEnergy << ":\n" << endl;
+	cout << "and minimal energy " << minEnergy << " TeV:\n" << endl;
 	for(auto const& c : coincidences) cout << *c;
 
 	WriteCStats();
@@ -494,7 +497,7 @@ void WriteTAEC(long int maxTimeDiff, double maxAngDist = 360, double minEnergy =
 //writes warning if two or more cascades are separated by smaller than selected amount of time
 //and smaler than selected angle, saves coincidences into a vector
 template<typename... args>
-void FindCoincidences(bool(*IsCoin)(int, int, args...), bool random, args... a)
+void FindCoincidences(bool(*IsCoin)(int, int, long int, args...), uint random_offset, long int maxdt, args... a)
 {
 	int numOfCoincidences = 0; //number of created coincidences, may be bigger than actual count
 
@@ -511,12 +514,12 @@ void FindCoincidences(bool(*IsCoin)(int, int, args...), bool random, args... a)
 
 			bool IsCoincidence = false;
 			int currentID = sortedEvents[i].m_coincidenceID;
+			if(currentID != -1) continue;
 
 			int startEvent;
-			int random_offset = 7200;
 
 			//if random time shift is applied, find first later event and set it as start 
-			if(random)
+			if(random_offset != 0)
 			{
 				//add random shift
 				//cout << "old " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";
@@ -551,7 +554,10 @@ void FindCoincidences(bool(*IsCoin)(int, int, args...), bool random, args... a)
 			//searching events coinciding with event i
 			for (int j = startEvent; j < sortedEvents.size(); ++j)
 			{
-				if(IsCoin(i,j,a...) and (currentID == -1) and (sortedEvents[j].m_coincidenceID == -1))
+				if(sortedEvents[j].m_eventTime.GetSec()-maxdt > sortedEvents[i].m_eventTime.GetSec())
+					break;
+
+				if(IsCoin(i,j,maxdt,a...) and (sortedEvents[j].m_coincidenceID == -1))
 				{	
 					if(!IsCoincidence)
 					{
@@ -571,7 +577,7 @@ void FindCoincidences(bool(*IsCoin)(int, int, args...), bool random, args... a)
 			//adding new coincidence
 			if(IsCoincidence and (currentID == -1)) coincidences.push_back(c);
 
-			if(random) //remove random shift
+			if(random_offset != 0) //remove random shift
 			{
 				//cout << "old2 " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";				
 				sortedEvents[i].m_eventTime.SetSec(sortedEvents[i].m_eventTime.GetSec()-random_offset);
@@ -583,7 +589,7 @@ void FindCoincidences(bool(*IsCoin)(int, int, args...), bool random, args... a)
 
 	for(shared_ptr<Coincidence> c : coincidences) sort(c->m_indexes.begin(),c->m_indexes.end());
 
-	if((void*)IsCoin == (void*)IsTAEC) WriteTAEC(a...);
+	if((void*)IsCoin == (void*)IsTAEC) WriteTAEC(maxdt,a...);
 }
 
 //returns if events with indexes i,j satisfy time, run and position criterions
@@ -609,7 +615,7 @@ void WarnLEDMatrixRun(int minCoinSize = 3, long int maxTimeDiff = 3600, double m
 
 	bool noLEDRunsDetected = true;
 
-	FindCoincidences(IsTRPC,false,maxTimeDiff,maxDist);
+	FindCoincidences(IsTRPC,0,maxTimeDiff,maxDist);
 
 	for(shared_ptr<Coincidence> c : coincidences)
 	{
@@ -773,7 +779,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	int endSeason   = year!=-1?year+1:20+1;
 
 	//path to data folder
-	const char* env_p = val==1?"/home/vavrik/bajkal/recoCascades/v1.2":"/home/vavrik/work/data";
+	const char* env_p = val==1?"/home/vavrik/bajkal/recoCascades/v1.2":"/home/vavrik/work/data";//"/media/vavrik/Alpha/BaikalData/dataGidra_v1.3";
 
 {
 	PROFILE_SCOPE("Fetch reco");
@@ -1068,15 +1074,24 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	
 	QuickSort(sortedEvents);
 
-	FindCoincidences(IsTAEC,true,maxTimeDiff,360.0,20.0);
-	FindCoincidences(IsTAEC,true,maxTimeDiff,20.0,20.0);
-	FindCoincidences(IsTAEC,true,maxTimeDiff,10.0,20.0);
+	// FindCoincidences(IsTAEC,0,maxTimeDiff,360.0,20.0);
+	// FindCoincidences(IsTAEC,0,maxTimeDiff,20.0,20.0);
+	// FindCoincidences(IsTAEC,0,maxTimeDiff,10.0,20.0);
+
+	for (int i = 0; i < 100; ++i)
+	{
+		FindCoincidences(IsTAEC,(i+1)*3600,maxTimeDiff,20.0,20.0);
+	}
+
+	random_coincidences->GetXaxis()->SetTitle("#NoC");
+	random_coincidences->GetYaxis()->SetTitle("#NoE");
+	random_coincidences->Draw("Lego2");
 
 	WarnLEDMatrixRun();
 
 	gStyle->SetOptStat(111111);
 
-	DrawResults(val);
+	//DrawResults(val);
 	SaveResults(year,cluster);
 
 	cout << "nProcessedEvents: " << nProcessedEvents << endl;
