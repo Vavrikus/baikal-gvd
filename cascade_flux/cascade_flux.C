@@ -23,6 +23,7 @@
 
 #define PROFILLING 0
 #include "../Instrumentor.h"
+#include "../transformations.h"
 
 #define DEBUG() cout << "Current Line: " << __LINE__ << endl;
 
@@ -77,7 +78,7 @@ vector<vector<vector<int>>> ledMatrixRuns = {{{2,3,4,5,6,7,8,9,10,11,118,119,177
 
 int unix1995 = 788918400;
 
-TH2F* random_coincidences = new TH2F("ran_coin","Random coincidences",250,0,0,4,0,0);
+TH2F* random_coincidences = new TH2F("ran_coin","Random coincidences",5,0,5,2,2,4);
 
 map<TString,TH1F*> flux_hist;
 map<TString,THStack*> flux_stack;
@@ -745,6 +746,21 @@ int FindRunInfo(int seasonID, int clusterID, int runID)
 	return -1;
 }
 
+void RandomCoincidences(long int maxTimeDiff,double maxAngDist = 20)
+{
+	int iterations = 10000;
+
+	for (int i = 0; i < iterations; ++i)
+	{
+		FindCoincidences(IsTAEC,(i+1)*20,maxTimeDiff,maxAngDist,20.0);
+	}
+
+	random_coincidences->Fill(0.0,2.1,iterations-random_coincidences->GetEntries());
+	random_coincidences->GetXaxis()->SetTitle("#NoC");
+	random_coincidences->GetYaxis()->SetTitle("#NoE");
+	random_coincidences->Draw("Lego2");
+}
+
 int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 {
 #if PROFILLING
@@ -779,7 +795,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	int endSeason   = year!=-1?year+1:20+1;
 
 	//path to data folder
-	const char* env_p = val==1?"/home/vavrik/bajkal/recoCascades/v1.2":"/home/vavrik/work/data";//"/media/vavrik/Alpha/BaikalData/dataGidra_v1.3";
+	const char* env_p = val==1?"/home/vavrik/bajkal/recoCascades/v1.2":"/media/vavrik/Alpha/BaikalData/dataAries_v1.5";//"/home/vavrik/work/data";//
 
 {
 	PROFILE_SCOPE("Fetch reco");
@@ -907,6 +923,8 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 	sortedEvents.reserve(nRecCasc);
 
+	TGraph* aitoff = new TGraph();
+
 {
 	PROFILE_SCOPE("Filter cascades");
 
@@ -955,6 +973,17 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 			cout << "Event " << eventID << " has low eventTime: ";
 			eventTime->Print();
 			cout << " seasonID: " << seasonID << " clusterID: " << clusterID << " runID: " << runID << "\n";
+		}
+
+		//make aitoff map for 50 TeV+
+		if(energy > 50)
+		{
+			double ra = radToDeg(rightAscension);
+			if(ra > 180) ra -= 360;
+			XY pos = toAitoff(ra,radToDeg(declination));
+			// cout << "ra: " << radToDeg(rightAscension) << " dec: " << radToDeg(declination) << endl;
+			// cout << "aitoff x: " << pos.x << " aitoff y: " << pos.y << endl;
+			aitoff->SetPoint(aitoff->GetN(),pos.x,pos.y);
 		}
 
 		//update runInfo
@@ -1078,14 +1107,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	// FindCoincidences(IsTAEC,0,maxTimeDiff,20.0,20.0);
 	// FindCoincidences(IsTAEC,0,maxTimeDiff,10.0,20.0);
 
-	for (int i = 0; i < 100; ++i)
-	{
-		FindCoincidences(IsTAEC,(i+1)*3600,maxTimeDiff,20.0,20.0);
-	}
-
-	random_coincidences->GetXaxis()->SetTitle("#NoC");
-	random_coincidences->GetYaxis()->SetTitle("#NoE");
-	random_coincidences->Draw("Lego2");
+	//RandomCoincidences(maxTimeDiff);
 
 	WarnLEDMatrixRun();
 
@@ -1093,6 +1115,15 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 	//DrawResults(val);
 	SaveResults(year,cluster);
+
+
+	TCanvas* c1 = new TCanvas("c1", "", 1000, 500);
+	drawmap("Cascades with energy > 50 TeV;Right ascension;Declination");
+	aitoff->SetMarkerColor(kBlue);
+	aitoff->SetMarkerSize(1);
+	aitoff->SetMarkerStyle(4);
+	aitoff->Draw("*");
+	drawLabels();
 
 	cout << "nProcessedEvents: " << nProcessedEvents << endl;
 	TString outputFileName = Form("filteredCascades_y%dc%d.root",year,cluster);

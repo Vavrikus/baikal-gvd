@@ -1,7 +1,10 @@
-#include "../transformations.h"
+#pragma once
 
-constexpr int samples = 200;
-constexpr double eventTime = 1502973664; // 17.8.2017 12:41:04 UTC
+#include "TLegend.h"
+
+#include "transformations.h"
+
+constexpr int hor_samples = 200;
 
 //templated struct for two arrays of same size used in sortSplitted
 template<int N>
@@ -65,18 +68,18 @@ TGraph* drawHorizon(const double time, const double latDet = latB,
 				 const double lonDet = lonB, EColor color = kRed)
 {
 	
-	double ra[samples], dec[samples], azm[samples];
+	double ra[hor_samples], dec[hor_samples], azm[hor_samples];
 
-	for (int i = 0; i < samples; ++i) azm[i] = ((double)i/(double)samples)*360;
-	for (int i = 0; i < samples; ++i)
+	for (int i = 0; i < hor_samples; ++i) azm[i] = ((double)i/(double)hor_samples)*360;
+	for (int i = 0; i < hor_samples; ++i)
 	{
-		eqCoor horizon = horToEq(horCoor(0,azm[samples-i-1],time),latDet,lonDet);
+		eqCoor horizon = horToEq(horCoor(0,azm[hor_samples-i-1],time),latDet,lonDet);
 		ra[i]  = horizon.rAsc;
 		dec[i] = horizon.dec;
 	}
 
 
-	for (int i = 0; i < samples; ++i) 
+	for (int i = 0; i < hor_samples; ++i) 
 	{
 		//ra[i] = 180-ra[i];
 		if(ra[i]>180) 
@@ -85,18 +88,18 @@ TGraph* drawHorizon(const double time, const double latDet = latB,
 		}
 	}
 
-	auto h = sortSplitted<samples>(ra, dec);
+	auto h = sortSplitted<hor_samples>(ra, dec);
 
-	double x[samples], y[samples];
+	double x[hor_samples], y[hor_samples];
 
-	for (int i = 0; i < samples; ++i)
+	for (int i = 0; i < hor_samples; ++i)
 	{
 		XY data = toAitoff(h.x[i], h.y[i]);
 		x[i] = data.x;
 		y[i] = data.y;
 	}
 
-	TGraph* horizon = new TGraph(samples, x, y);
+	TGraph* horizon = new TGraph(hor_samples, x, y);
 
 	horizon->SetLineColor(color);
 	horizon->SetLineWidth(2);
@@ -108,12 +111,14 @@ TGraph* drawHorizon(const double time, const double latDet = latB,
 
 void horizon()
 {
+	constexpr double horizonTime = 1502973664; // 17.8.2017 12:41:04 UTC
+
 	TCanvas* c1 = new TCanvas("c1", "", 1000, 500);
 	drawmap("Neutrino detectors horizons GW170817;Right ascension;Declination");
 
-	TGraph* bai = drawHorizon(eventTime);
-	TGraph* ice = drawHorizon(eventTime, latI, lonI, kBlue);
-	TGraph* ant = drawHorizon(eventTime, latA, lonA, kGreen);
+	TGraph* bai = drawHorizon(horizonTime);
+	TGraph* ice = drawHorizon(horizonTime, latI, lonI, kBlue);
+	TGraph* ant = drawHorizon(horizonTime, latA, lonA, kGreen);
 
 	TLegend* leg = new TLegend(.76,.725,.9,.9,"");
 
@@ -128,7 +133,7 @@ void horizon()
 
 //basic projection
 
-	/*TGraph* horizon = new TGraph(samples, ra2, dec2);
+	/*TGraph* horizon = new TGraph(hor_samples, ra2, dec2);
 	TAxis* axis = horizon->GetXaxis();
 
 	axis->SetLimits(0.,360.);

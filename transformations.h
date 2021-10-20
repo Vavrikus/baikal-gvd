@@ -317,7 +317,7 @@ TH2F* drawmap(const char* title)
 {
 	TH2F* skymap = new TH2F("Blank skymap","Blank skymap",40,-210,210,20,-105,105);
 
-	//gStyle->SetOptStat(0000);
+	gStyle->SetOptStat(0000);
 		
 	const int Nl=13; // Number of drawn latitudes
 	const int NL=25; // Number of drawn longitudes
