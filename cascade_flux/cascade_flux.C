@@ -81,6 +81,12 @@ struct Event
 
 		return TMath::Sqrt(dx2+dy2+dz2);
 	}
+
+	static bool IsEarlier(const Event& ev1, const Event& ev2)
+	{
+		if(ev1.m_eventTime.GetSec() < ev2.m_eventTime.GetSec()) return true;
+		else return false;
+	}
 };
 
 // std::vector<double> stringXPositions = {5.22,52.13,57.54,25.17,-29.84,-53.6,-42.32,0};
@@ -405,42 +411,6 @@ int GetStartTime(int season)
 int GetEndTime(int season)
 {
 	return 1491004799+((season-2016)*365+GetLeapYears(season))*86400-unix1995;
-}
-
-void Swap(vector<Event>& arr, int i, int j)
-{
-	Event temp = arr[i];
-	arr[i] = arr[j];
-	arr[j] = temp;	
-}
-
-//partition for quicksort algorhitm
-int Partition(vector<Event>& arr, int high, int low)
-{
-	int firstBigger = low + 1;
-
-	for (int i = low + 1; i <= high; i++)
-	{
-		if(arr[i].m_eventTime.GetSec() <= arr[low].m_eventTime.GetSec())
-		{
-			Swap(arr,i,firstBigger);
-			firstBigger = firstBigger+1;
-		}
-	}
-
-	Swap(arr,low,firstBigger-1);
-	return firstBigger-1;
-}
-
-void QuickSort(vector<Event>& arr, int high = -100, int low = 0)
-{
-	if(high == -100) high = arr.size()-1;
-	if(high > low)
-	{
-		int pivot = Partition(arr,high,low);
-		QuickSort(arr,high,pivot+1);
-		QuickSort(arr,pivot-1,low);
-	}
 }
 
 //attempts to find a coincidence with given id and returns its index (-1 if unsuccessful)
@@ -812,7 +782,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	int endSeason   = year!=-1?year+1:20+1;
 
 	//path to data folder
-	const char* env_p = val==1?"/home/vavrik/bajkal/recoCascades/v1.2":"/media/vavrik/Alpha/BaikalData/dataGidra_v1.3";//"/home/vavrik/work/data";//
+	const char* env_p = val==1?"/home/vavrik/bajkal/recoCascades/v1.2":"/home/vavrik/work/data";//"/media/vavrik/Alpha/BaikalData/dataGidra_v1.3";//
 
 {
 	PROFILE_SCOPE("Fetch reco");
@@ -1122,7 +1092,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 }
 
 	
-	QuickSort(sortedEvents);
+	sort(sortedEvents.begin(),sortedEvents.end(),Event::IsEarlier);
 
 	// FindCoincidences(IsTAEC,0,maxTimeDiff,360.0,20.0);
 	// FindCoincidences(IsTAEC,0,maxTimeDiff,20.0,20.0);
