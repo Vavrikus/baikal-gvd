@@ -57,6 +57,22 @@ struct Event
 	    return 180.0*v1.Angle(v2)/TMath::Pi();
 	}
 
+	//returns angular distance from given point on sky (input and output in degrees)
+	double angDist(double ra, double dec)
+	{
+	    TVector3 v1(0,0,1);
+	    v1.SetTheta(TMath::Pi()/2.0+this->m_declination);
+	    v1.SetPhi(this->m_rightAscension);
+
+	    if(ra < 0) ra += 360;
+
+	    TVector3 v2(0,0,1);
+	    v2.SetTheta(TMath::Pi()/2.0+degToRad(dec));
+	    v2.SetPhi(degToRad(ra));
+
+	    return radToDeg(v1.Angle(v2));
+	}
+
 	double Dist(const Event& ev) const
 	{
 		double dx2 = pow((this->m_position(0) - ev.m_position(0)),2);
@@ -771,6 +787,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 	int LCut;
 	long int maxTimeDiff;
+	double energyCut = 200;
 
 	cout << "Contained + 40 cut is applied.\n";
 	cout << "Apply likelihood cut? [1/0]\n";
@@ -795,7 +812,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	int endSeason   = year!=-1?year+1:20+1;
 
 	//path to data folder
-	const char* env_p = val==1?"/home/vavrik/bajkal/recoCascades/v1.2":"/media/vavrik/Alpha/BaikalData/dataAries_v1.5";//"/home/vavrik/work/data";//
+	const char* env_p = val==1?"/home/vavrik/bajkal/recoCascades/v1.2":"/media/vavrik/Alpha/BaikalData/dataGidra_v1.3";//"/home/vavrik/work/data";//
 
 {
 	PROFILE_SCOPE("Fetch reco");
@@ -963,6 +980,10 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 		// if (!IsContained(position,40) || likelihoodHitOnly > 1.5 || position->Z() > 200)
 		// if (!IsUncontained(position,60,100) || likelihoodHitOnly > 3)
 			continue;
+		
+		//energy cut
+		if(energy < energyCut) 
+			continue;
 
 		nProcessedEvents++;
 		filteredCascades->Fill();
@@ -975,8 +996,8 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 			cout << " seasonID: " << seasonID << " clusterID: " << clusterID << " runID: " << runID << "\n";
 		}
 
-		//make aitoff map for 50 TeV+
-		if(energy > 50)
+		//make aitoff map for energyCut TeV+
+		if(energy >= energyCut)
 		{
 			double ra = radToDeg(rightAscension);
 			if(ra > 180) ra -= 360;
@@ -1116,14 +1137,47 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	//DrawResults(val);
 	SaveResults(year,cluster);
 
-
+	//drawing aitoff
 	TCanvas* c1 = new TCanvas("c1", "", 1000, 500);
-	drawmap("Cascades with energy > 50 TeV;Right ascension;Declination");
+	drawmap(Form("Cascades with energy > %f TeV;Right ascension;Declination", energyCut));
 	aitoff->SetMarkerColor(kBlue);
 	aitoff->SetMarkerSize(1);
 	aitoff->SetMarkerStyle(4);
 	aitoff->Draw("*");
 	drawLabels();
+
+	//fixed window events (turn on energyCut)
+	double window = 6; //angle window in degrees
+	int step = 3;
+
+	TString title = Form("Events E > %f TeV per %f degree window;Right ascension;Declination",energyCut,window);
+	TH2F* h_density = new TH2F("h_density",title,360/step,-180,180,180/step+1,-90,91);
+	TH1F* h_density_stats = new TH1F("h_density_stats","Bins with given number of events;#NoE;#NoB",16,0,16);
+
+	for(int ra = -180; ra < 181; ra += step)
+	{
+		for(int dec = -90; dec < 91; dec += step)
+		{
+			int noe = 0;
+
+			for(auto ev : sortedEvents)
+			{
+				if(ev.angDist(ra,dec) < window)
+				{
+					h_density->Fill(ra,dec);
+					noe++;
+				}
+			}
+			h_density_stats->Fill(noe);
+		}
+	}
+
+	TCanvas* c2 = new TCanvas("c2", "", 1000, 500);
+	h_density->Draw("Lego2");
+
+	TCanvas* c3 = new TCanvas("c3", "", 1000, 500);
+	h_density_stats->Draw();
+
 
 	cout << "nProcessedEvents: " << nProcessedEvents << endl;
 	TString outputFileName = Form("filteredCascades_y%dc%d.root",year,cluster);
