@@ -281,32 +281,29 @@ void RunInfo::parseRuns(vector<RunInfo>& dataOut, const string& path)
 
 class IDrawable
 {
-protected:
 	typedef std::function<void(const Event&)> FillFn;
 	typedef std::function<void()> DrawFn;
 
-private:
-	int dim;
-	string drawOpt;
+protected:
+	FillFn fillfunc;
+	DrawFn drawfunc;
 
 public:
 	virtual ~IDrawable() {}
 	virtual void Draw() = 0;
 	virtual void Fill(const Event&) = 0;
-	void SetDrawOpt(string opt) {drawOpt = opt;}
+	void SetFillFunc(FillFn f) {fillfunc = f;}
+	void SetDrawFunc(DrawFn f) {drawfunc = f;}
 };
 
 template<typename DrawType>
 class DrawMap : public IDrawable
 {
-private:
-	FillFn fillfunc;
 public:
 	map<TString,TCanvas*> canvasmap;
 	map<TString,DrawType*> drawmap;
 
 public:
-	void SetFillFunc(FillFn f) {fillfunc = f;}
 	void Draw() override {}
 	void Fill(const Event&) override {}
 };
@@ -315,9 +312,6 @@ public:
 template<typename DrawType>
 class DrawSingle : public IDrawable
 {
-private:
-	FillFn fillfunc;
-	DrawFn drawfunc;
 public:
 	TCanvas* canvas;
 	DrawType* drawsingle;
@@ -325,8 +319,6 @@ public:
 public:
 	DrawSingle() {drawsingle = new DrawType();}
 
-	void SetFillFunc(FillFn f) {fillfunc = f;}
-	void SetDrawFunc(DrawFn f) {drawfunc = f;}
 	void Draw() override {drawfunc();}
 	void Fill(const Event& e) override {fillfunc(e);}
 };
@@ -533,17 +525,6 @@ void EventLoop::RunLoop()
 		current_ev.LowTimeWarning();
 
 		FillDrawables(current_ev);
-
-		// //make aitoff map for energyCut TeV+
-		// if(energy >= energyCut)
-		// {
-		// 	double ra = radToDeg(rightAscension);
-		// 	if(ra > 180) ra -= 360;
-		// 	XY pos = toAitoff(ra,radToDeg(declination));
-		// 	// cout << "ra: " << radToDeg(rightAscension) << " dec: " << radToDeg(declination) << endl;
-		// 	// cout << "aitoff x: " << pos.x << " aitoff y: " << pos.y << endl;
-		// 	aitoff->SetPoint(aitoff->GetN(),pos.x,pos.y);
-		// }
 
 		// //key for histogram identification
 		// TString hist_key = to_string(clusterID)+to_string(seasonID);
@@ -1084,6 +1065,8 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 		drawLabels();
 	};
 	aitoff->SetDrawFunc(drawAitoff);
+
+	DrawMap<TH1F>* flux_hist = new DrawMap<TH1F>();
 
 	eloop->AddDrawable(aitoff);
 	eloop->RunLoop();
