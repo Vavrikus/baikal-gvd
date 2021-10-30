@@ -304,8 +304,8 @@ public:
 	map<TString,DrawType*> drawmap;
 
 public:
-	void Draw() override {}
-	void Fill(const Event&) override {}
+	void Draw() override {drawfunc();}
+	void Fill(const Event& e) override {fillfunc(e);}
 };
 
 
@@ -525,30 +525,6 @@ void EventLoop::RunLoop()
 		current_ev.LowTimeWarning();
 
 		FillDrawables(current_ev);
-
-		// //key for histogram identification
-		// TString hist_key = to_string(clusterID)+to_string(seasonID);
-
-		// PROFILE_SCOPE("Histograms");
-
-		// //if histogram with given key does not exist, create one, fill histogram
-		// if(flux_hist.find(hist_key)==flux_hist.end())
-		// {
-		// 	TString hist_name = Form("h_cascFlux_y%dc%d",seasonID-2000,clusterID);
-		// 	flux_hist[hist_key] = new TH1F(hist_name,hist_name(11,5)+"; Month; NoE [#]",50,GetStartTime(2016),GetEndTime(2016));
-
-		// 	flux_hist[hist_key]->GetXaxis()->SetTimeDisplay(1);
-		// 	flux_hist[hist_key]->GetXaxis()->SetTimeFormat("%m");//("%m/%Y");
-
-		// 	int color = seasonID-2014+clusterID;
-		// 	if(color > 9) color += 30;
-
-		// 	flux_hist[hist_key]->SetLineColor(color);	
-
-		// 	cout << "Year: " << seasonID << " Cluster: " << clusterID << "\n";
-		// }
-
-		// flux_hist[hist_key]->Fill(eventTime->GetSec()-unix1995-GetStartTime(seasonID)+GetStartTime(2016)); //1970 unix to 1995 unix
 	}
 }
 
@@ -664,45 +640,6 @@ ostream& operator<<(ostream& stream, const RunInfo& rinfo)
 
 // void DrawResults(int val)
 // {
-// 	for(auto const& x : flux_hist)
-// 	{
-// 		// flux_canv[x.first] = new TCanvas(x.first,"CascadeFlux",800,600);
-// 		// x.second->Draw();
-
-// 		TString season = x.first(1,4);
-// 		TString cluster = x.first(0,1);
-
-// 		//if THStack with given key does not exist, create one, fill THStack
-// 		if(flux_stack.find(season)!=flux_stack.end()) flux_stack[season]->Add(x.second);
-// 		else
-// 		{
-// 			TString stack_name = "hs_cascFlux_y"+season(2,2);
-// 			flux_stack[season] = new THStack(stack_name,"Cascade flux over time; Month; NoE [#] per 7.3 days");
-
-// 			flux_stack[season]->Add(x.second);
-// 		}
-
-// 		if(flux_stack.find(cluster)!=flux_stack.end()) flux_stack[cluster]->Add(x.second);
-// 		else
-// 		{
-// 			TString stack_name = "hs_cascFlux_c"+cluster;
-// 			flux_stack[cluster] = new THStack(stack_name,"Cascade flux over time; Month; NoE [#] per 7.3 days");
-
-// 			flux_stack[cluster]->Add(x.second);
-// 		}		
-// 	}
-
-// 	for(auto const& x : flux_stack)
-// 	{
-// 		flux_canv[x.first] = new TCanvas("c_cascFlux_" + x.first,"CascadeFlux",800,600);
-// 		x.second->Draw("nostack");
-
-// 		x.second->GetXaxis()->SetTimeDisplay(1);
-// 		x.second->GetXaxis()->SetTimeFormat("%m");
-// 		x.second->Draw("nostack");
-//   		gPad->BuildLegend(0.75,0.75,0.95,0.95,"");	
-// 	}
-
 // 	for(auto const& x : flux_graphs)
 // 	{
 // 		TString season  = x.first(1,4);
@@ -1066,46 +1003,81 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	};
 	aitoff->SetDrawFunc(drawAitoff);
 
+	//making flux histograms
 	DrawMap<TH1F>* flux_hist = new DrawMap<TH1F>();
 
+	FillFn fillFlux = [&flux_hist](const Event& e)
+	{
+		//key for histogram identification
+		TString hist_key = to_string(e.m_clusterID)+to_string(e.m_seasonID);
+
+		//if histogram with given key does not exist, create one, fill histogram
+		if(flux_hist->drawmap.find(hist_key)==flux_hist->drawmap.end())
+		{
+			TString hist_name = Form("h_cascFlux_y%dc%d",e.m_seasonID-2000,e.m_clusterID);
+			flux_hist->drawmap[hist_key] = new TH1F(hist_name,hist_name(11,5)+"; Month; NoE [#]",50,GetStartTime(2016),GetEndTime(2016));
+
+			flux_hist->drawmap[hist_key]->GetXaxis()->SetTimeDisplay(1);
+			flux_hist->drawmap[hist_key]->GetXaxis()->SetTimeFormat("%m");//("%m/%Y");
+
+			int color = e.m_seasonID-2014+e.m_clusterID;
+			if(color > 9) color += 30;
+
+			flux_hist->drawmap[hist_key]->SetLineColor(color);	
+		}
+
+		flux_hist->drawmap[hist_key]->Fill(e.m_eventTime->GetSec()-unix1995-GetStartTime(e.m_seasonID)+GetStartTime(2016)); //1970 unix to 1995 unix
+	};
+	flux_hist->SetFillFunc(fillFlux);
+
+	DrawFn drawFlux = [&flux_hist]()
+	{
+		map<TString,THStack*> flux_stack;
+		for(auto const& x : flux_hist->drawmap)
+		{
+			// flux_canv[x.first] = new TCanvas(x.first,"CascadeFlux",800,600);
+			// x.second->Draw();
+
+			TString season = x.first(1,4);
+			TString cluster = x.first(0,1);
+
+			//if THStack with given key does not exist, create one, fill THStack
+			if(flux_stack.find(season)!=flux_stack.end()) flux_stack[season]->Add(x.second);
+			else
+			{
+				TString stack_name = "hs_cascFlux_y"+season(2,2);
+				flux_stack[season] = new THStack(stack_name,"Cascade flux over time; Month; NoE [#] per 7.3 days");
+
+				flux_stack[season]->Add(x.second);
+			}
+
+			if(flux_stack.find(cluster)!=flux_stack.end()) flux_stack[cluster]->Add(x.second);
+			else
+			{
+				TString stack_name = "hs_cascFlux_c"+cluster;
+				flux_stack[cluster] = new THStack(stack_name,"Cascade flux over time; Month; NoE [#] per 7.3 days");
+
+				flux_stack[cluster]->Add(x.second);
+			}		
+		}
+
+		for(auto const& x : flux_stack)
+		{
+			flux_hist->canvasmap[x.first] = new TCanvas("c_cascFlux_" + x.first,"CascadeFlux",800,600);
+			x.second->Draw("nostack");
+
+			x.second->GetXaxis()->SetTimeDisplay(1);
+			x.second->GetXaxis()->SetTimeFormat("%m");
+			x.second->Draw("nostack");
+	  		gPad->BuildLegend(0.75,0.75,0.95,0.95,"");	
+		}
+	};
+	flux_hist->SetDrawFunc(drawFlux);
+
 	eloop->AddDrawable(aitoff);
+	eloop->AddDrawable(flux_hist);
 	eloop->RunLoop();
 	eloop->DrawAll();
-// {
-// 	PROFILE_SCOPE("Filter cascades");
-
-// 	for (int i = 0; i < reconstructedCascades.GetEntries(); ++i)
-// 	{
-// 		//key for histogram identification
-// 		TString hist_key = to_string(clusterID)+to_string(seasonID);
-
-// 		PROFILE_SCOPE("Histograms");
-
-// 		//if histogram with given key does not exist, create one, fill histogram
-// 		if(flux_hist.find(hist_key)==flux_hist.end())
-// 		{
-// 			TString hist_name = Form("h_cascFlux_y%dc%d",seasonID-2000,clusterID);
-// 			flux_hist[hist_key] = new TH1F(hist_name,hist_name(11,5)+"; Month; NoE [#]",50,GetStartTime(2016),GetEndTime(2016));
-
-// 			flux_hist[hist_key]->GetXaxis()->SetTimeDisplay(1);
-// 			flux_hist[hist_key]->GetXaxis()->SetTimeFormat("%m");//("%m/%Y");
-
-// 			int color = seasonID-2014+clusterID;
-// 			if(color > 9) color += 30;
-
-// 			flux_hist[hist_key]->SetLineColor(color);	
-
-// 			cout << "Year: " << seasonID << " Cluster: " << clusterID << "\n";
-// 		}
-
-// 		flux_hist[hist_key]->Fill(eventTime->GetSec()-unix1995-GetStartTime(seasonID)+GetStartTime(2016)); //1970 unix to 1995 unix
-
-// 		sortedEvents.push_back(ev);
-// 	}
-
-// 	//cout << "Min time: " << minTime << " Max time: " << maxTime << " Days: " << (maxTime-minTime)/86400.0 << endl;
-// }
-
 
 // 	//making graphs from logs (and CustomCut events)
 // 	vector<vector<const RunInfo*>> plotruns;
