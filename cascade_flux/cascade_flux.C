@@ -290,8 +290,9 @@ protected:
 
 public:
 	virtual ~IDrawable() {}
-	virtual void Draw() = 0;
 	virtual void Fill(const Event&) = 0;
+	virtual void Draw() = 0;
+	virtual void Save() = 0;
 	void SetFillFunc(FillFn f) {fillfunc = f;}
 	void SetDrawFunc(DrawFn f) {drawfunc = f;}
 };
@@ -304,8 +305,9 @@ public:
 	map<TString,DrawType*> drawmap;
 
 public:
-	void Draw() override {drawfunc();}
 	void Fill(const Event& e) override {fillfunc(e);}
+	void Draw() override {drawfunc();}
+	void Save() override {for(auto x : canvasmap) x.second->Write();}
 };
 
 
@@ -319,8 +321,9 @@ public:
 public:
 	DrawSingle() {drawsingle = new DrawType();}
 
-	void Draw() override {drawfunc();}
 	void Fill(const Event& e) override {fillfunc(e);}
+	void Draw() override {drawfunc();}
+	void Save() override {canvas->Write();}
 };
 
 class EventLoop
@@ -333,6 +336,8 @@ private:
 	vector<FilterFn> filters;
 	vector<IDrawable*> drawables;
 	Event current_ev;
+
+	map<TString,tuple<TGraph*,TGraph*>> flux_graphs;
 	map<TString,TCanvas*> flux_canv;
 
 public:
@@ -367,8 +372,9 @@ public:
 	void AddFilter(FilterFn f)   {filters.push_back(f);}
 	void AddDrawable(IDrawable* d) {drawables.push_back(d);}
 	void FillDrawables(const Event& e) {for(IDrawable* d : drawables) d->Fill(e);}
-	void DrawAll() 				 	   {for(IDrawable* d : drawables) d->Draw();}
 	void RunLoop();
+	void DrawAll() 				 	   {for(IDrawable* d : drawables) d->Draw();}
+	void SaveAll();
 	void DrawFluxGraphs();
 	int FindRunInfo(int seasonID, int clusterID, int runID);
 	int FindRunInfo(Event* e) {return FindRunInfo(e->m_seasonID,e->m_clusterID,e->m_runID);}
@@ -536,11 +542,18 @@ void EventLoop::RunLoop()
 	sort(sortedEvents.begin(),sortedEvents.end(),Event::IsEarlier);
 }
 
+void EventLoop::SaveAll()
+{
+	TString outputFileName = Form("cascFlux_y%dc%d.root",year,cluster);
+	TFile* outputFile = new TFile(outputFileName,"RECREATE");
+
+	for(IDrawable* d : drawables) d->Save();
+	for(auto x : flux_canv) x.second->Write();
+}
+
 //making graphs from logs (and CustomCut events)
 void EventLoop::DrawFluxGraphs()
 {
-	map<TString,tuple<TGraph*,TGraph*>> flux_graphs;
-
 	for(const RunInfo& rinfo : runs)
 	{
 		//if(rinfo.m_LikelihoodFit/rinfo.m_runTime > 500) cout << rinfo;
@@ -734,15 +747,6 @@ ostream& operator<<(ostream& stream, const RunInfo& rinfo)
 
 	return stream;
 }
-
-// void SaveResults(int year, int cluster)
-// {
-// 	TString outputFileName = Form("cascFlux_y%dc%d.root",year,cluster);
-// 	TFile* outputFile = new TFile(outputFileName,"RECREATE");
-// 	for(auto const& x : flux_hist) x.second->Write();
-// 	for(auto const& x : flux_stack) x.second->Write();
-// 	for(auto const& x : flux_canv) x.second->Write();
-// }
 
 //returns number of leap years since 2016 (copied from transformations.h UTCtoUnix function)
 int GetLeapYears(int season)
@@ -1057,7 +1061,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 	DrawFn drawAitoff = [&energyCut,&aitoff]()
 	{
-		aitoff->canvas = new TCanvas("c1", "", 1000, 500);
+		aitoff->canvas = new TCanvas("c_aitoff", "", 1000, 500);
 		drawmap(Form("Cascades with energy > %f TeV;Right ascension;Declination", energyCut));
 		aitoff->drawsingle->SetMarkerColor(kBlue);
 		aitoff->drawsingle->SetMarkerSize(1);
@@ -1153,12 +1157,13 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	eloop->AddFilter(Contained40Filter);
 	if(DoLikelihoodCut) eloop->AddFilter(LikelihoodFilter);
 	eloop->AddFilter(EnergyFilter);
-	
+
 	eloop->AddDrawable(aitoff);
 	eloop->AddDrawable(flux_hist);
 	eloop->RunLoop();
 	eloop->DrawAll();
 	eloop->DrawFluxGraphs();
+	eloop->SaveAll();
 
 // 	// FindCoincidences(IsTAEC,0,maxTimeDiff,360.0,20.0);
 // 	// FindCoincidences(IsTAEC,0,maxTimeDiff,20.0,20.0);
