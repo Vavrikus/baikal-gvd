@@ -328,15 +328,17 @@ class EventLoop
 	typedef std::function<bool(const Event&)> FilterFn;
 
 private:
-	int startID,endID,startSeason,endSeason;
+	int year,cluster,startID,endID,startSeason,endSeason;
 
 	vector<FilterFn> filters;
 	vector<IDrawable*> drawables;
 	Event current_ev;
+	map<TString,TCanvas*> flux_canv;
 
 public:
 	vector<Event>   sortedEvents;
 	vector<RunInfo> runs;
+	vector<vector<const RunInfo*>> plotruns;
 	TChain reconstructedCascades;
 	TTree* filteredCascades;
 
@@ -346,7 +348,10 @@ private:
 
 public:
 	EventLoop(int year, int cluster)
-	{		
+	{
+		this->year    = year;
+		this->cluster = cluster;
+
 		startID = cluster!=-1?cluster:0;
 		endID   = cluster!=-1?cluster+1:10;
 
@@ -364,6 +369,7 @@ public:
 	void FillDrawables(const Event& e) {for(IDrawable* d : drawables) d->Fill(e);}
 	void DrawAll() 				 	   {for(IDrawable* d : drawables) d->Draw();}
 	void RunLoop();
+	void DrawFluxGraphs();
 	int FindRunInfo(int seasonID, int clusterID, int runID);
 	int FindRunInfo(Event* e) {return FindRunInfo(e->m_seasonID,e->m_clusterID,e->m_runID);}
 	int FindRunInfo() {return FindRunInfo(&current_ev);}
@@ -526,6 +532,97 @@ void EventLoop::RunLoop()
 
 		FillDrawables(current_ev);
 	}
+
+	sort(sortedEvents.begin(),sortedEvents.end(),Event::IsEarlier);
+}
+
+//making graphs from logs (and CustomCut events)
+void EventLoop::DrawFluxGraphs()
+{
+	map<TString,tuple<TGraph*,TGraph*>> flux_graphs;
+
+	for(const RunInfo& rinfo : runs)
+	{
+		//if(rinfo.m_LikelihoodFit/rinfo.m_runTime > 500) cout << rinfo;
+
+		TString graph_key = to_string(rinfo.m_clusterID) + to_string(rinfo.m_seasonID);
+
+		if(flux_graphs.find(graph_key) == flux_graphs.end())
+		{
+			TGraph* runs = new TGraph();
+			TGraph* saverage = new TGraph();
+
+			flux_graphs[graph_key] = make_tuple(runs,saverage);
+
+			TString graph_title = Form("Cascade flux year %d cluster %d;RunID;Cascades per day",rinfo.m_seasonID,rinfo.m_clusterID);
+			runs->SetTitle(graph_title);
+			runs->SetName(Form("g_cascFlux_y%dc%d",rinfo.m_seasonID-2000,rinfo.m_clusterID));
+
+			saverage->SetName(Form("g2_cascFlux_y%dc%d",rinfo.m_seasonID-2000,rinfo.m_clusterID));
+			saverage->SetLineColor(kRed);
+			saverage->SetLineWidth(4);
+
+			plotruns.push_back(vector<const RunInfo*>());
+		}
+
+		get<0>(flux_graphs[graph_key])->SetPoint(get<0>(flux_graphs[graph_key])->GetN(),
+										rinfo.m_runID,rinfo.m_CustomFil/rinfo.m_runTime);
+		plotruns.back().push_back(&rinfo);
+	}
+
+
+	for(auto vec : plotruns) 
+	{
+		deque<tuple<double,double,double>> avg; //queue for sliding average (x,custom,runtime)
+
+		for(auto rinfo : vec)
+		{
+			// cout << *rinfo;
+			TString graph_key = to_string(rinfo->m_clusterID) + to_string(rinfo->m_seasonID);
+
+			int n_avg = 10;
+
+			avg.push_back(make_tuple(rinfo->m_runID,rinfo->m_CustomFil,rinfo->m_runTime));
+			
+			//cout << "almost there, deque size: " << avg.size() <<"\n";
+			if(avg.size() == n_avg+1) 
+			{
+				avg.pop_front();
+
+				double newX       = 0;
+				double newCustom  = 0;
+				double newRunTime = 0;
+
+				for(auto x : avg)
+				{
+					// cout << "x: " << get<0>(x) << endl;
+					newX 	   += get<0>(x);
+					newCustom  += get<1>(x);
+					newRunTime += get<2>(x);
+				}
+
+				newX = newX/n_avg;
+
+				// cout << "adding point\n";
+				// cout << "X: " << newX << "\n";
+				get<1>(flux_graphs[graph_key])->SetPoint(get<1>(flux_graphs[graph_key])->GetN(),
+												newX,newCustom/newRunTime);
+			}
+		}
+	}
+
+	for(auto const& x : flux_graphs)
+	{
+		TString season  = x.first(1,4);
+		TString cluster = x.first(0,1);
+
+		TString canvas_title = "Cascade flux year " + season + " cluster " + cluster;
+		TString canvas_name  = "c_fluxGraph_y" + season(2,2) + "c" + cluster;
+
+		flux_canv[x.first] = new TCanvas(canvas_name,canvas_title,800,600);
+		get<0>(x.second)->Draw();
+		get<1>(x.second)->Draw("same");
+	}
 }
 
 //returns index of given run in vector of RunInfo
@@ -637,22 +734,6 @@ ostream& operator<<(ostream& stream, const RunInfo& rinfo)
 
 	return stream;
 }
-
-// void DrawResults(int val)
-// {
-// 	for(auto const& x : flux_graphs)
-// 	{
-// 		TString season  = x.first(1,4);
-// 		TString cluster = x.first(0,1);
-
-// 		TString canvas_title = "Cascade flux year " + season + " cluster " + cluster;
-// 		TString canvas_name  = "c_fluxGraph_y" + season(2,2) + "c" + cluster;
-
-// 		flux_canv[x.first] = new TCanvas(canvas_name,canvas_title,800,600);
-// 		get<0>(x.second)->Draw();
-// 		get<1>(x.second)->Draw("same");
-// 	}
-// }
 
 // void SaveResults(int year, int cluster)
 // {
@@ -948,28 +1029,11 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	cin >> maxTimeDiff;
 	cout << "Maximal time difference set to " << maxTimeDiff << " seconds.\n";
 
-	EventLoop* eloop = new EventLoop(year,cluster);
-
-	const char* data_path = val==1?"/home/vavrik/bajkal/recoCascades/v1.2":"/home/vavrik/work/data";//"/media/vavrik/Alpha/BaikalData/dataGidra_v1.3";//
-	eloop->LoadReco(data_path);
-
-	string logs_path;
-	if(val == 0) logs_path = "/home/vavrik/work/Baikal-GVD/cascade_flux/logs/programOutput_";
-	if(val == 1) logs_path = "/home/vavrik/storage/casc_flux/logs/programOutput_";
-	eloop->LoadRunLogs(logs_path);
-
-	eloop->SetUpTTrees();
-
 	typedef std::function<bool(const Event&)> FilterFn;
 	FilterFn LEDfilter = [](const Event& e){if(e.IsLEDMatrixRun()) return false; else return true;};
 	FilterFn Contained40Filter = [](const Event& e){if(e.IsContained(40)) return true; else return false;};
 	FilterFn LikelihoodFilter = [](const Event& e){if(e.m_likelihoodHitOnly > 1.5) return false; else return true;};
 	FilterFn EnergyFilter = [&energyCut](const Event& e){if(e.m_energy < energyCut) return false; else return true;};
-
-	eloop->AddFilter(LEDfilter);
-	eloop->AddFilter(Contained40Filter);
-	if(DoLikelihoodCut) eloop->AddFilter(LikelihoodFilter);
-	eloop->AddFilter(EnergyFilter);
 
 	typedef std::function<void(const Event&)> FillFn;
 	typedef std::function<void()> DrawFn;
@@ -1074,88 +1138,27 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	};
 	flux_hist->SetDrawFunc(drawFlux);
 
+	EventLoop* eloop = new EventLoop(year,cluster);
+
+	const char* data_path = val==1?"/home/vavrik/bajkal/recoCascades/v1.2":"/home/vavrik/work/data";//"/media/vavrik/Alpha/BaikalData/dataGidra_v1.3";//
+	eloop->LoadReco(data_path);
+
+	string logs_path;
+	if(val == 0) logs_path = "/home/vavrik/work/Baikal-GVD/cascade_flux/logs/programOutput_";
+	if(val == 1) logs_path = "/home/vavrik/storage/casc_flux/logs/programOutput_";
+	eloop->LoadRunLogs(logs_path);
+	eloop->SetUpTTrees();
+
+	eloop->AddFilter(LEDfilter);
+	eloop->AddFilter(Contained40Filter);
+	if(DoLikelihoodCut) eloop->AddFilter(LikelihoodFilter);
+	eloop->AddFilter(EnergyFilter);
+	
 	eloop->AddDrawable(aitoff);
 	eloop->AddDrawable(flux_hist);
 	eloop->RunLoop();
 	eloop->DrawAll();
-
-// 	//making graphs from logs (and CustomCut events)
-// 	vector<vector<const RunInfo*>> plotruns;
-// {
-// 	PROFILE_SCOPE("Log graphs");
-// 	for(const RunInfo& rinfo : runs)
-// 	{
-// 		//if(rinfo.m_LikelihoodFit/rinfo.m_runTime > 500) cout << rinfo;
-
-// 		TString graph_key = to_string(rinfo.m_clusterID) + to_string(rinfo.m_seasonID);
-
-// 		if(flux_graphs.find(graph_key) == flux_graphs.end())
-// 		{
-// 			TGraph* runs = new TGraph();
-// 			TGraph* saverage = new TGraph();
-
-// 			flux_graphs[graph_key] = make_tuple(runs,saverage);
-
-// 			TString graph_title = Form("Cascade flux year %d cluster %d;RunID;Cascades per day",rinfo.m_seasonID,rinfo.m_clusterID);
-// 			runs->SetTitle(graph_title);
-// 			runs->SetName(Form("g_cascFlux_y%dc%d",rinfo.m_seasonID-2000,rinfo.m_clusterID));
-
-// 			saverage->SetName(Form("g2_cascFlux_y%dc%d",rinfo.m_seasonID-2000,rinfo.m_clusterID));
-// 			saverage->SetLineColor(kRed);
-// 			saverage->SetLineWidth(4);
-
-// 			plotruns.push_back(vector<const RunInfo*>());
-// 		}
-
-// 		get<0>(flux_graphs[graph_key])->SetPoint(get<0>(flux_graphs[graph_key])->GetN(),
-// 										rinfo.m_runID,rinfo.m_CustomFil/rinfo.m_runTime);
-// 		plotruns.back().push_back(&rinfo);
-// 	}
-
-
-// 	for(auto vec : plotruns) 
-// 	{
-// 		deque<tuple<double,double,double>> avg; //queue for sliding average (x,custom,runtime)
-
-// 		for(auto rinfo : vec)
-// 		{
-// 			// cout << *rinfo;
-// 			TString graph_key = to_string(rinfo->m_clusterID) + to_string(rinfo->m_seasonID);
-
-// 			int n_avg = 10;
-
-// 			avg.push_back(make_tuple(rinfo->m_runID,rinfo->m_CustomFil,rinfo->m_runTime));
-			
-// 			//cout << "almost there, deque size: " << avg.size() <<"\n";
-// 			if(avg.size() == n_avg+1) 
-// 			{
-// 				avg.pop_front();
-
-// 				double newX       = 0;
-// 				double newCustom  = 0;
-// 				double newRunTime = 0;
-
-// 				for(auto x : avg)
-// 				{
-// 					// cout << "x: " << get<0>(x) << endl;
-// 					newX 	   += get<0>(x);
-// 					newCustom  += get<1>(x);
-// 					newRunTime += get<2>(x);
-// 				}
-
-// 				newX = newX/n_avg;
-
-// 				// cout << "adding point\n";
-// 				// cout << "X: " << newX << "\n";
-// 				get<1>(flux_graphs[graph_key])->SetPoint(get<1>(flux_graphs[graph_key])->GetN(),
-// 												newX,newCustom/newRunTime);
-// 			}
-// 		}
-// 	}
-// }
-
-	
-// 	sort(sortedEvents.begin(),sortedEvents.end(),Event::IsEarlier);
+	eloop->DrawFluxGraphs();
 
 // 	// FindCoincidences(IsTAEC,0,maxTimeDiff,360.0,20.0);
 // 	// FindCoincidences(IsTAEC,0,maxTimeDiff,20.0,20.0);
