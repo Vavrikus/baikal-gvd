@@ -369,7 +369,11 @@ public:
 	void LoadReco(const char* env_p);
 	void LoadRunLogs(string dir);
 	void SetUpTTrees();
-	void AddFilter(FilterFn f)   {filters.push_back(f);}
+	void UseLEDfilter();
+	void UseContainedFilter(double dist);
+	void UseLikelihoodFilter(double max);
+	void UseEnergyFilter(double min);
+	void AddFilter(FilterFn f)     {filters.push_back(f);}
 	void AddDrawable(IDrawable* d) {drawables.push_back(d);}
 	void FillDrawables(const Event& e) {for(IDrawable* d : drawables) d->Fill(e);}
 	void RunLoop();
@@ -514,9 +518,33 @@ void EventLoop::SetUpTTrees()
 
 	int nRecCasc = reconstructedCascades.GetEntries();
 
-	cout << "\nnRecCasc: " << reconstructedCascades.GetEntries() << "\n" << endl;
+	cout << "\nnRecCasc: " << reconstructedCascades.GetEntries() << endl;
 
 	sortedEvents.reserve(nRecCasc);
+}
+
+void EventLoop::UseLEDfilter()
+{
+	FilterFn LEDfilter = [](const Event& e){if(e.IsLEDMatrixRun()) return false; else return true;};
+	filters.push_back(LEDfilter);
+}
+
+void EventLoop::UseContainedFilter(double dist)
+{
+	FilterFn Contained40Filter = [dist](const Event& e){if(e.IsContained(dist)) return true; else return false;};
+	filters.push_back(Contained40Filter);
+}
+
+void EventLoop::UseLikelihoodFilter(double max)
+{
+	FilterFn LikelihoodFilter = [max](const Event& e){if(e.m_likelihoodHitOnly > max) return false; else return true;};
+	filters.push_back(LikelihoodFilter);
+}
+
+void EventLoop::UseEnergyFilter(double min)
+{
+	FilterFn EnergyFilter = [min](const Event& e){if(e.m_energy < min) return false; else return true;};
+	filters.push_back(EnergyFilter);
 }
 
 void EventLoop::RunLoop()
@@ -539,6 +567,7 @@ void EventLoop::RunLoop()
 		FillDrawables(current_ev);
 	}
 
+	cout << "\nnFilCasc: " << filteredCascades->GetEntries() << endl;
 	sort(sortedEvents.begin(),sortedEvents.end(),Event::IsEarlier);
 }
 
@@ -1033,12 +1062,6 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	cin >> maxTimeDiff;
 	cout << "Maximal time difference set to " << maxTimeDiff << " seconds.\n";
 
-	typedef std::function<bool(const Event&)> FilterFn;
-	FilterFn LEDfilter = [](const Event& e){if(e.IsLEDMatrixRun()) return false; else return true;};
-	FilterFn Contained40Filter = [](const Event& e){if(e.IsContained(40)) return true; else return false;};
-	FilterFn LikelihoodFilter = [](const Event& e){if(e.m_likelihoodHitOnly > 1.5) return false; else return true;};
-	FilterFn EnergyFilter = [&energyCut](const Event& e){if(e.m_energy < energyCut) return false; else return true;};
-
 	typedef std::function<void(const Event&)> FillFn;
 	typedef std::function<void()> DrawFn;
 
@@ -1153,10 +1176,10 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	eloop->LoadRunLogs(logs_path);
 	eloop->SetUpTTrees();
 
-	eloop->AddFilter(LEDfilter);
-	eloop->AddFilter(Contained40Filter);
-	if(DoLikelihoodCut) eloop->AddFilter(LikelihoodFilter);
-	eloop->AddFilter(EnergyFilter);
+	eloop->UseLEDfilter();
+	eloop->UseContainedFilter(40);
+	if(DoLikelihoodCut) eloop->UseLikelihoodFilter(1.5);
+	eloop->UseEnergyFilter(energyCut);
 
 	eloop->AddDrawable(aitoff);
 	eloop->AddDrawable(flux_hist);
