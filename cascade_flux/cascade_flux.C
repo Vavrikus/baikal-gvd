@@ -144,34 +144,49 @@ struct Event
 	}
 };
 
-// struct Coincidence
-// {
-// 	int m_id;
-// 	vector<int> m_indexes; //indexes of events in sortedEvents
+std::ostream& operator<<(std::ostream& stream, const Event& ev)
+{
+	stream << "     =====================================  EVENT INFO  =====================================\n";
+	stream << "     Time Stamp:\n          ";
+	ev.m_eventTime->Print();
 
-// 	Coincidence()
-// 	{
-// 		this->m_id = -1;
-// 	}
+	stream << "\n     IDs:\n     ";
+    stream << "     eventID: " << ev.m_eventID << ", coincidenceID: " << ev.m_coincidenceID;
+    stream << ", seasonID: " << ev.m_seasonID << ", clusterID: " << ev.m_clusterID;
+    stream << ", runID: " << ev.m_runID << "\n\n";
 
-// 	Coincidence(const Coincidence&) = delete;
-// 	Coincidence& operator=(Coincidence other) = delete;
+    stream << "     Reconstructed variables:\n     ";
+    stream << "     energy = " << ev.m_energy << " TeV, sigma = " << ev.m_energySigma << " TeV\n     ";
+    stream << "     theta = " << ev.m_theta/TMath::Pi()*180 << ", sigma = " << ev.m_thetaSigma/TMath::Pi()*180;
+    stream << ", phi = " << ev.m_phi/TMath::Pi()*180 << ", sigma = " << ev.m_phiSigma/TMath::Pi()*180;
+    stream << ", direction sigma = " << ev.m_directionSigma << "\n     ";
+    stream << "     Position (XYZ): " << ev.m_position->X();
+    stream << " " << ev.m_position->Y() << " " << ev.m_position->Z() << "\n     ";
+    stream << "     right ascension = " << ev.m_rightAscension/TMath::Pi()*180;
+    stream << ", declination = " << ev.m_declination/TMath::Pi()*180 << "\n\n";
 
-// 	// ~Coincidence() {}
+    stream << "     Reconstruction parameters:\n     ";
+    stream << "     nHits = " << ev.m_nHits << ", nTrackHits = " << ev.m_nTrackHits << ", qTotal = ";
+    stream << ev.m_qTotal << "\n     ";
+    stream << "     likelihood = " << ev.m_likelihood << ", likelihoodHitOnly = " << ev.m_likelihoodHitOnly;
+    stream << "\n          cascTime = " << ev.m_cascTime << "\n   ";
 
-// 	//returns angular distance of events number i and j in degrees
-// 	double angDist(int i, int j) const
-// 	{
-// 	    return sortedEvents[m_indexes[i]].angDist(sortedEvents[m_indexes[j]]);
-// 	}
+    stream << "     After TFilter:\n     ";
+    stream << "     nHits = " << ev.m_nHitsAfterTFilter <<  ", nStrings = " << ev.m_nStringsAfterTFilter;
+    stream << ", chi2 = " << ev.m_chi2AfterTFilter << "\n   ";
 
-// 	//adds event from sortedEvents
-// 	void AddEvent(int index)
-// 	{
-// 		sortedEvents[index].m_coincidenceID = this->m_id;
-// 		this->m_indexes.push_back(index);
-// 	}
-// };
+    stream << "     After Caus:\n     ";
+    stream << "     nHits = " << ev.m_nHitsAfterCaus << ", nStrings = " << ev.m_nStringsAfterCaus;
+    stream << ", chi2 = " << ev.m_chi2AfterCaus << "\n\n";
+
+    stream << "     MC data:\n     ";
+    stream << "     energy = " << ev.m_mcEnergy << " TeV, theta = " << ev.m_mcTheta/TMath::Pi()*180; 
+    stream << ", phi = " << ev.m_mcPhi/TMath::Pi()*180 << "\n     ";
+    stream << "     Position (XYZ): " << ev.m_mcPosition->X();
+    stream << " " << ev.m_mcPosition->Y() << " " << ev.m_mcPosition->Z() << endl;
+
+    return stream;
+}
 
 struct RunInfo
 {
@@ -326,6 +341,313 @@ public:
 	void Save() override {canvas->Write();}
 };
 
+class CoincidenceFinder
+{
+public:
+	struct Coincidence
+	{
+		int m_id;
+		vector<int> m_indexes; //indexes of events in sortedEvents
+		CoincidenceFinder* cfinder;
+
+		Coincidence(CoincidenceFinder* cfinder)
+		{
+			this->m_id = -1;
+			this->cfinder = cfinder;
+		}
+
+		Coincidence(const Coincidence&) = delete;
+		Coincidence& operator=(Coincidence other) = delete;
+
+		//~Coincidence() {}
+
+		//returns angular distance of events number i and j in degrees
+		double angDist(int i, int j) const
+		{
+		    return cfinder->sortedEvents[m_indexes[i]].angDist(cfinder->sortedEvents[m_indexes[j]]);
+		}
+
+		//adds event from sortedEvents
+		void AddEvent(int index)
+		{
+			cfinder->sortedEvents[index].m_coincidenceID = this->m_id;
+			this->m_indexes.push_back(index);
+		}
+	};
+
+public:
+	vector<Event> sortedEvents;
+	vector<Coincidence*> coincidences;
+	TH2F* random_coincidences = new TH2F("ran_coin","Random coincidences",5,0,5,2,2,4);
+
+private:
+	bool IsTAEC(int i, int j, long int maxT, double maxAD, double minE);
+	bool IsTRPC(int i, int j, long int maxT, double maxD);
+
+public:
+	CoincidenceFinder(vector<Event> sortedEvents)
+	{
+		this->sortedEvents = sortedEvents;
+	}
+
+	CoincidenceFinder(const CoincidenceFinder&) = delete;
+	CoincidenceFinder& operator=(CoincidenceFinder other) = delete;
+
+	void WriteCStats();
+	void WriteTAEC(long int maxT, double maxAD, double minE);
+
+	template<typename... args>
+	void FindCoincidences(bool(CoincidenceFinder::*IsCoin)(int, int, long int, args...), uint random_offset, long int maxdt, args... a);
+	void FindTAEC(long int maxTimeDiff, double maxAngDist = 360, double minEnergy = 0) {FindCoincidences(&CoincidenceFinder::IsTAEC,0,maxTimeDiff,maxAngDist,minEnergy);}
+	void WarnLEDMatrixRun(int minCSize, long int maxT, double maxD);
+	void RandomCoincidences(long int maxT,double maxAD);
+};
+
+std::ostream& operator<<(std::ostream& stream, const CoincidenceFinder::Coincidence& c)
+{
+	stream << "#######################################  COINCIDENCE  #######################################\n";
+	stream << "ID: " << c.m_id << "\n";
+	stream << "Number of events: " << c.m_indexes.size() << "\n";
+
+	stream << "Time differences: ";
+
+	for(int i = 1; i < c.m_indexes.size(); i++)
+	{
+		if(i!=1) cout << ", ";
+		stream <<  c.cfinder->sortedEvents[c.m_indexes[i]].m_eventTime->GetSec()
+				  -c.cfinder->sortedEvents[c.m_indexes[i-1]].m_eventTime->GetSec(); 
+	}
+
+	stream << "\nMinimal angular distance: ";
+	double minAngDist = c.angDist(0,1);
+
+	for (int i = 0; i < c.m_indexes.size(); i++)
+	{
+		for(int j = i+1; j < c.m_indexes.size(); j++)
+		{
+			if(c.angDist(i,j) < minAngDist)
+			{
+				minAngDist = c.angDist(i,j);
+			}
+		}
+	}
+
+	stream << minAngDist << "\n\n";
+
+	for(int ev_index : c.m_indexes) stream << c.cfinder->sortedEvents[ev_index] << "\n" << endl;
+
+    return stream;
+}
+
+//returns if events with indexes i,j are part coincidence with given time and angle differences
+//and if both events have greater energy (TeV) than given 
+bool CoincidenceFinder::IsTAEC(int i, int j, long int maxTimeDiff, double maxAngDist = 360, double minEnergy = 0)
+{
+	bool timeOK   = sortedEvents[j].m_eventTime->GetSec() - sortedEvents[i].m_eventTime->GetSec() <= maxTimeDiff;
+	bool angleOK  = sortedEvents[i].angDist(sortedEvents[j]) <= maxAngDist;
+	bool energyOK = (sortedEvents[i].m_energy >= minEnergy) and (sortedEvents[j].m_energy >= minEnergy);
+	
+	return timeOK and angleOK and energyOK;
+}
+
+//returns if events with indexes i,j satisfy time, run and position criterions
+bool CoincidenceFinder::IsTRPC(int i, int j, long int maxTimeDiff = 3600, double maxDist = 5)
+{
+	bool timeOK = sortedEvents[j].m_eventTime->GetSec() - sortedEvents[i].m_eventTime->GetSec() <= maxTimeDiff;
+	bool posOK  = sortedEvents[i].Dist(sortedEvents[j]) <= maxDist;
+	bool yearOK	= sortedEvents[i].m_seasonID  == sortedEvents[j].m_seasonID;
+	bool clusOK = sortedEvents[i].m_clusterID == sortedEvents[j].m_clusterID;
+	bool runOK  = sortedEvents[i].m_runID	  == sortedEvents[j].m_runID;
+
+	return timeOK and posOK and yearOK and clusOK and runOK;
+}
+
+//outputs coincidence counts into console
+void CoincidenceFinder::WriteCStats()
+{
+	vector<int> counts; //how many coincidences with given number of events, 0th index = 2
+
+	for(Coincidence* c : coincidences)
+	{
+		int cEvents = c->m_indexes.size();
+
+		if(cEvents-1 > counts.size())
+			for (int i = counts.size(); i < cEvents-1; ++i) counts.push_back(0);
+
+		counts[cEvents-2]++;
+	}
+
+	cout << "#NoE   #NoC\n";
+	cout << "=============\n";
+	for (int i = 0; i < counts.size(); ++i)
+	{
+		random_coincidences->Fill(counts[i],i+2);
+		if(i < 8)       cout << i+2 << "      " << counts[i] << "\n";
+		else if(i < 98) cout << i+2 << "     " << counts[i] << "\n";
+		else            cout << i+2 << "    " << counts[i] << "\n";
+	}
+	cout << "\nTotal coincidences: " << coincidences.size() << "\n\n";
+}
+
+//writes coincidences with stats into console
+void CoincidenceFinder::WriteTAEC(long int maxTimeDiff, double maxAngDist = 360, double minEnergy = 0)
+{	
+	cout << "\n\nCoincidences with maximal time difference " << maxTimeDiff;
+	cout << " seconds, maximal distance " << maxAngDist << " degrees\n";
+	cout << "and minimal energy " << minEnergy << " TeV:\n" << endl;
+	for(Coincidence* c : coincidences) cout << *c;
+
+	WriteCStats();
+}
+
+//writes warning if two or more cascades are separated by smaller than selected amount of time
+//and smaler than selected angle, saves coincidences into a vector
+template<typename... args>
+void CoincidenceFinder::FindCoincidences(bool(CoincidenceFinder::*IsCoin)(int, int, long int, args...), uint random_offset, long int maxdt, args... a)
+{
+	int numOfCoincidences = 0; //number of created coincidences, may be bigger than actual count
+
+	coincidences.clear();
+
+	//reset coincidence IDs
+	for(int i = 0; i < sortedEvents.size(); ++i) sortedEvents[i].m_coincidenceID = -1;
+
+	if(sortedEvents.size() > 0)
+	{
+		for(int i = 0; i < sortedEvents.size()-1; ++i)
+		{
+			Coincidence* c = new Coincidence(this);
+
+			bool IsCoincidence = false;
+			int currentID = sortedEvents[i].m_coincidenceID;
+			if(currentID != -1) continue;
+
+			int startEvent;
+
+			//if random time shift is applied, find first later event and set it as start 
+			if(random_offset != 0)
+			{
+				//add random shift
+				//cout << "old " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";
+				sortedEvents[i].m_eventTime->SetSec(sortedEvents[i].m_eventTime->GetSec()+random_offset);
+				//cout << "new " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";
+
+				int lower_bound  = i;
+				int higher_bound = sortedEvents.size()-1;
+
+				while(lower_bound != higher_bound-1)
+				{
+					int mid = floor((higher_bound+lower_bound)/2.0);
+					//cout << lower_bound << " " << mid << " " << higher_bound << endl;
+					if(sortedEvents[i].m_eventTime->GetSec() > sortedEvents[mid].m_eventTime->GetSec())
+						lower_bound = mid;
+					else higher_bound = mid;
+				}
+
+				//if should not happen for good shift
+				if(higher_bound == i) 
+				{
+					startEvent = i+1;
+					cout << "WARNING: Random shift insufficient.";
+				}
+
+				else startEvent = higher_bound;
+				//cout << "startEvent " << startEvent << " " << sortedEvents[startEvent].m_eventTime.GetSec() << "\n";
+			}
+
+			else startEvent = i+1;
+
+			//searching events coinciding with event i
+			for (int j = startEvent; j < sortedEvents.size(); ++j)
+			{
+				if(sortedEvents[j].m_eventTime->GetSec()-maxdt > sortedEvents[i].m_eventTime->	GetSec())
+					break;
+
+				if((this->*IsCoin)(i,j,maxdt,a...) and (sortedEvents[j].m_coincidenceID == -1))
+				{	
+					if(!IsCoincidence)
+					{
+						IsCoincidence = true;
+
+						c->m_indexes.clear();
+						c->m_id = numOfCoincidences;
+						c->AddEvent(i);
+
+						numOfCoincidences++;
+					}
+
+					c->AddEvent(j);					
+				}
+			}
+
+			//adding new coincidence
+			if(IsCoincidence and (currentID == -1)) coincidences.push_back(c);
+
+			if(random_offset != 0) //remove random shift
+			{
+				//cout << "old2 " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";				
+				sortedEvents[i].m_eventTime->SetSec(sortedEvents[i].m_eventTime->GetSec()-random_offset);
+				//cout << "new2 " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";
+			}
+		}
+	}
+
+
+	for(Coincidence* c : coincidences) sort(c->m_indexes.begin(),c->m_indexes.end());
+
+	//if((void*)IsCoin == (void*)IsTAEC) WriteTAEC(maxdt,a...);
+}
+
+void CoincidenceFinder::WarnLEDMatrixRun(int minCoinSize = 3, long int maxTimeDiff = 3600, double maxDist = 5)
+{
+	PROFILE_FUNCTION();
+
+	cout << "\nPossible LED matrix runs detected:\n  coincidences with ";
+	cout << minCoinSize << " or more events\n  position difference max ";
+	cout << maxDist <<" meters\n  time difference max " << maxTimeDiff << " seconds\n";
+	cout << "======================================\n";
+
+	bool noLEDRunsDetected = true;
+
+	FindCoincidences(&CoincidenceFinder::IsTRPC,0,maxTimeDiff,maxDist);
+
+	for(Coincidence* c : coincidences)
+	{
+		for(int season = 2016; season < 2021; season++)
+		{
+			for(int cluster = 0; cluster < 10; cluster++)
+			{
+				if(sortedEvents[c->m_indexes[0]].m_seasonID == season && sortedEvents[c->m_indexes[0]].m_clusterID == cluster && c->m_indexes.size() >= minCoinSize)
+				{
+					noLEDRunsDetected = false;
+					cout << "seasonID: "   << sortedEvents[c->m_indexes[0]].m_seasonID;
+					cout << " clusterID: " << sortedEvents[c->m_indexes[0]].m_clusterID;
+					cout << " runID: "     << sortedEvents[c->m_indexes[0]].m_runID << "\n";
+				}
+
+			}
+		}
+	}
+
+	if(noLEDRunsDetected) cout << "No runs detected." << endl;
+	cout << endl;
+}
+
+void CoincidenceFinder::RandomCoincidences(long int maxTimeDiff,double maxAngDist = 20)
+{
+	int iterations = 10000;
+
+	for (int i = 0; i < iterations; ++i)
+	{
+		FindCoincidences(&CoincidenceFinder::IsTAEC,(i+1)*20,maxTimeDiff,maxAngDist,20.0);
+	}
+
+	random_coincidences->Fill(0.0,2.1,iterations-random_coincidences->GetEntries());
+	random_coincidences->GetXaxis()->SetTitle("#NoC");
+	random_coincidences->GetYaxis()->SetTitle("#NoE");
+	random_coincidences->Draw("Lego2");
+}
+
 class EventLoop
 {
 	typedef std::function<bool(const Event&)> FilterFn;
@@ -346,6 +668,7 @@ public:
 	vector<vector<const RunInfo*>> plotruns;
 	TChain reconstructedCascades;
 	TTree* filteredCascades;
+	CoincidenceFinder* cfinder;
 
 private:
 	void PrintProgress(int, int);
@@ -569,15 +892,22 @@ void EventLoop::RunLoop()
 
 	cout << "\nnFilCasc: " << filteredCascades->GetEntries() << endl;
 	sort(sortedEvents.begin(),sortedEvents.end(),Event::IsEarlier);
+
+	cfinder = new CoincidenceFinder(sortedEvents);
 }
 
 void EventLoop::SaveAll()
 {
 	TString outputFileName = Form("cascFlux_y%dc%d.root",year,cluster);
 	TFile* outputFile = new TFile(outputFileName,"RECREATE");
-
 	for(IDrawable* d : drawables) d->Save();
 	for(auto x : flux_canv) x.second->Write();
+	outputFile->Close();
+	
+	TString outputFileName2 = Form("filteredCascades_y%dc%d.root",year,cluster);
+	TFile *newFile = new TFile(outputFileName2,"recreate");
+	filteredCascades->Write();
+	newFile->Close();		
 }
 
 //making graphs from logs (and CustomCut events)
@@ -679,86 +1009,6 @@ int EventLoop::FindRunInfo(int seasonID, int clusterID, int runID)
 	return -1;
 }
 
-//operator overloading for printing
-std::ostream& operator<<(std::ostream& stream, const Event& ev)
-{
-	stream << "     =====================================  EVENT INFO  =====================================\n";
-	stream << "     Time Stamp:\n          ";
-	ev.m_eventTime->Print();
-
-	stream << "\n     IDs:\n     ";
-    stream << "     eventID: " << ev.m_eventID << ", coincidenceID: " << ev.m_coincidenceID;
-    stream << ", seasonID: " << ev.m_seasonID << ", clusterID: " << ev.m_clusterID;
-    stream << ", runID: " << ev.m_runID << "\n\n";
-
-    stream << "     Reconstructed variables:\n     ";
-    stream << "     energy = " << ev.m_energy << " TeV, sigma = " << ev.m_energySigma << " TeV\n     ";
-    stream << "     theta = " << ev.m_theta/TMath::Pi()*180 << ", sigma = " << ev.m_thetaSigma/TMath::Pi()*180;
-    stream << ", phi = " << ev.m_phi/TMath::Pi()*180 << ", sigma = " << ev.m_phiSigma/TMath::Pi()*180;
-    stream << ", direction sigma = " << ev.m_directionSigma << "\n     ";
-    stream << "     Position (XYZ): " << ev.m_position->X();
-    stream << " " << ev.m_position->Y() << " " << ev.m_position->Z() << "\n     ";
-    stream << "     right ascension = " << ev.m_rightAscension/TMath::Pi()*180;
-    stream << ", declination = " << ev.m_declination/TMath::Pi()*180 << "\n\n";
-
-    stream << "     Reconstruction parameters:\n     ";
-    stream << "     nHits = " << ev.m_nHits << ", nTrackHits = " << ev.m_nTrackHits << ", qTotal = ";
-    stream << ev.m_qTotal << "\n     ";
-    stream << "     likelihood = " << ev.m_likelihood << ", likelihoodHitOnly = " << ev.m_likelihoodHitOnly;
-    stream << "\n          cascTime = " << ev.m_cascTime << "\n   ";
-
-    stream << "     After TFilter:\n     ";
-    stream << "     nHits = " << ev.m_nHitsAfterTFilter <<  ", nStrings = " << ev.m_nStringsAfterTFilter;
-    stream << ", chi2 = " << ev.m_chi2AfterTFilter << "\n   ";
-
-    stream << "     After Caus:\n     ";
-    stream << "     nHits = " << ev.m_nHitsAfterCaus << ", nStrings = " << ev.m_nStringsAfterCaus;
-    stream << ", chi2 = " << ev.m_chi2AfterCaus << "\n\n";
-
-    stream << "     MC data:\n     ";
-    stream << "     energy = " << ev.m_mcEnergy << " TeV, theta = " << ev.m_mcTheta/TMath::Pi()*180; 
-    stream << ", phi = " << ev.m_mcPhi/TMath::Pi()*180 << "\n     ";
-    stream << "     Position (XYZ): " << ev.m_mcPosition->X();
-    stream << " " << ev.m_mcPosition->Y() << " " << ev.m_mcPosition->Z() << endl;
-
-    return stream;
-}
-
-// std::ostream& operator<<(std::ostream& stream, const Coincidence& c)
-// {
-// 	stream << "#######################################  COINCIDENCE  #######################################\n";
-// 	stream << "ID: " << c.m_id << "\n";
-// 	stream << "Number of events: " << c.m_indexes.size() << "\n";
-
-// 	stream << "Time differences: ";
-
-// 	for(int i = 1; i < c.m_indexes.size(); i++)
-// 	{
-// 		if(i!=1) cout << ", ";
-// 		stream << sortedEvents[c.m_indexes[i]].m_eventTime->GetSec()-sortedEvents[c.m_indexes[i-1]].m_eventTime->GetSec(); 
-// 	}
-
-// 	stream << "\nMinimal angular distance: ";
-// 	double minAngDist = c.angDist(0,1);
-
-// 	for (int i = 0; i < c.m_indexes.size(); i++)
-// 	{
-// 		for(int j = i+1; j < c.m_indexes.size(); j++)
-// 		{
-// 			if(c.angDist(i,j) < minAngDist)
-// 			{
-// 				minAngDist = c.angDist(i,j);
-// 			}
-// 		}
-// 	}
-
-// 	stream << minAngDist << "\n\n";
-
-// 	for(int ev_index : c.m_indexes) stream << sortedEvents[ev_index] << "\n" << endl;
-
-//     return stream;
-// }
-
 ostream& operator<<(ostream& stream, const RunInfo& rinfo)
 {
 	stream << "\nRUN INFO:\n";
@@ -799,253 +1049,11 @@ int GetEndTime(int season)
 	return 1491004799+((season-2016)*365+GetLeapYears(season))*86400-unix1995;
 }
 
-// //attempts to find a coincidence with given id and returns its index (-1 if unsuccessful)
-// int FindCID(const int& id) 
-// {
-// 	int index = -1;
-// 	for (int i = 0; i < coincidences.size(); ++i)
-// 	{
-// 		if(coincidences[i]->m_id == id) {index = i; break;}
-// 	}
-
-// 	if(index == -1) 
-// 	{
-// 		cout << "FindCID warning: Unable to find coincidence with id " << id << "." << endl;
-// 		cout << "coincidences.size(): " << coincidences.size();
-// 		cout << ", coincidences.back()->m_id: " << coincidences.back()->m_id << endl;
-// 	}
-
-// 	return index;
-// }
-
-// //outputs coincidence counts into console
-// void WriteCStats()
-// {
-// 	vector<int> counts; //how many coincidences with given number of events, 0th index = 2
-
-// 	for(shared_ptr<Coincidence> c : coincidences)
-// 	{
-// 		int cEvents = c->m_indexes.size();
-
-// 		if(cEvents-1 > counts.size())
-// 			for (int i = counts.size(); i < cEvents-1; ++i) counts.push_back(0);
-
-// 		counts[cEvents-2]++;
-// 	}
-
-// 	cout << "#NoE   #NoC\n";
-// 	cout << "=============\n";
-// 	for (int i = 0; i < counts.size(); ++i)
-// 	{
-// 		random_coincidences->Fill(counts[i],i+2);
-// 		if(i < 8)       cout << i+2 << "      " << counts[i] << "\n";
-// 		else if(i < 98) cout << i+2 << "     " << counts[i] << "\n";
-// 		else            cout << i+2 << "    " << counts[i] << "\n";
-// 	}
-// 	cout << "\nTotal coincidences: " << coincidences.size() << "\n\n";
-// }
-
-// //returns if events with indexes i,j are part coincidence with given time and angle differences
-// //and if both events have greater energy (TeV) than given 
-// bool IsTAEC(int i, int j, long int maxTimeDiff, double maxAngDist = 360, double minEnergy = 0)
-// {
-// 	bool timeOK   = sortedEvents[j].m_eventTime->GetSec() - sortedEvents[i].m_eventTime->GetSec() <= maxTimeDiff;
-// 	bool angleOK  = sortedEvents[i].angDist(sortedEvents[j]) <= maxAngDist;
-// 	bool energyOK = (sortedEvents[i].m_energy >= minEnergy) and (sortedEvents[j].m_energy >= minEnergy);
-	
-// 	return timeOK and angleOK and energyOK;
-// }
-
-// //writes coincidences with stats into console
-// void WriteTAEC(long int maxTimeDiff, double maxAngDist = 360, double minEnergy = 0)
-// {	
-// 	cout << "\n\nCoincidences with maximal time difference " << maxTimeDiff;
-// 	cout << " seconds, maximal distance " << maxAngDist << " degrees\n";
-// 	cout << "and minimal energy " << minEnergy << " TeV:\n" << endl;
-// 	for(auto const& c : coincidences) cout << *c;
-
-// 	WriteCStats();
-// }
-
-// //writes warning if two or more cascades are separated by smaller than selected amount of time
-// //and smaler than selected angle, saves coincidences into a vector
-// template<typename... args>
-// void FindCoincidences(bool(*IsCoin)(int, int, long int, args...), uint random_offset, long int maxdt, args... a)
-// {
-// 	int numOfCoincidences = 0; //number of created coincidences, may be bigger than actual count
-
-// 	coincidences.clear();
-
-// 	//reset coincidence IDs
-// 	for(int i = 0; i < sortedEvents.size(); ++i) sortedEvents[i].m_coincidenceID = -1;
-
-// 	if(sortedEvents.size() > 0)
-// 	{
-// 		for(int i = 0; i < sortedEvents.size()-1; ++i)
-// 		{
-// 			shared_ptr<Coincidence> c = make_shared<Coincidence>();
-
-// 			bool IsCoincidence = false;
-// 			int currentID = sortedEvents[i].m_coincidenceID;
-// 			if(currentID != -1) continue;
-
-// 			int startEvent;
-
-// 			//if random time shift is applied, find first later event and set it as start 
-// 			if(random_offset != 0)
-// 			{
-// 				//add random shift
-// 				//cout << "old " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";
-// 				sortedEvents[i].m_eventTime->SetSec(sortedEvents[i].m_eventTime->GetSec()+random_offset);
-// 				//cout << "new " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";
-
-// 				int lower_bound  = i;
-// 				int higher_bound = sortedEvents.size()-1;
-
-// 				while(lower_bound != higher_bound-1)
-// 				{
-// 					int mid = floor((higher_bound+lower_bound)/2.0);
-// 					//cout << lower_bound << " " << mid << " " << higher_bound << endl;
-// 					if(sortedEvents[i].m_eventTime->GetSec() > sortedEvents[mid].m_eventTime->GetSec())
-// 						lower_bound = mid;
-// 					else higher_bound = mid;
-// 				}
-
-// 				//if should not happen for good shift
-// 				if(higher_bound == i) 
-// 				{
-// 					startEvent = i+1;
-// 					cout << "WARNING: Random shift insufficient.";
-// 				}
-
-// 				else startEvent = higher_bound;
-// 				//cout << "startEvent " << startEvent << " " << sortedEvents[startEvent].m_eventTime.GetSec() << "\n";
-// 			}
-
-// 			else startEvent = i+1;
-
-// 			//searching events coinciding with event i
-// 			for (int j = startEvent; j < sortedEvents.size(); ++j)
-// 			{
-// 				if(sortedEvents[j].m_eventTime->GetSec()-maxdt > sortedEvents[i].m_eventTime->	GetSec())
-// 					break;
-
-// 				if(IsCoin(i,j,maxdt,a...) and (sortedEvents[j].m_coincidenceID == -1))
-// 				{	
-// 					if(!IsCoincidence)
-// 					{
-// 						IsCoincidence = true;
-
-// 						c->m_indexes.clear();
-// 						c->m_id = numOfCoincidences;
-// 						c->AddEvent(i);
-
-// 						numOfCoincidences++;
-// 					}
-
-// 					c->AddEvent(j);					
-// 				}
-// 			}
-
-// 			//adding new coincidence
-// 			if(IsCoincidence and (currentID == -1)) coincidences.push_back(c);
-
-// 			if(random_offset != 0) //remove random shift
-// 			{
-// 				//cout << "old2 " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";				
-// 				sortedEvents[i].m_eventTime->SetSec(sortedEvents[i].m_eventTime->GetSec()-random_offset);
-// 				//cout << "new2 " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";
-// 			}
-// 		}
-// 	}
-
-
-// 	for(shared_ptr<Coincidence> c : coincidences) sort(c->m_indexes.begin(),c->m_indexes.end());
-
-// 	if((void*)IsCoin == (void*)IsTAEC) WriteTAEC(maxdt,a...);
-// }
-
-// //returns if events with indexes i,j satisfy time, run and position criterions
-// bool IsTRPC(int i, int j, long int maxTimeDiff = 3600, double maxDist = 5)
-// {
-// 	bool timeOK = sortedEvents[j].m_eventTime->GetSec() - sortedEvents[i].m_eventTime->GetSec() <= maxTimeDiff;
-// 	bool posOK  = sortedEvents[i].Dist(sortedEvents[j]) <= maxDist;
-// 	bool yearOK	= sortedEvents[i].m_seasonID  == sortedEvents[j].m_seasonID;
-// 	bool clusOK = sortedEvents[i].m_clusterID == sortedEvents[j].m_clusterID;
-// 	bool runOK  = sortedEvents[i].m_runID	  == sortedEvents[j].m_runID;
-
-// 	return timeOK and posOK and yearOK and clusOK and runOK;
-// }
-
-// void WarnLEDMatrixRun(int minCoinSize = 3, long int maxTimeDiff = 3600, double maxDist = 5)
-// {
-// 	PROFILE_FUNCTION();
-
-// 	cout << "\nPossible LED matrix runs detected:\n  coincidences with ";
-// 	cout << minCoinSize << " or more events\n  position difference max ";
-// 	cout << maxDist <<" meters\n  time difference max " << maxTimeDiff << " seconds\n";
-// 	cout << "======================================\n";
-
-// 	bool noLEDRunsDetected = true;
-
-// 	FindCoincidences(IsTRPC,0,maxTimeDiff,maxDist);
-
-// 	for(shared_ptr<Coincidence> c : coincidences)
-// 	{
-// 		for(int season = 2016; season < 2021; season++)
-// 		{
-// 			for(int cluster = 0; cluster < 10; cluster++)
-// 			{
-// 				if(sortedEvents[c->m_indexes[0]].m_seasonID == season && sortedEvents[c->m_indexes[0]].m_clusterID == cluster && c->m_indexes.size() >= minCoinSize)
-// 				{
-// 					noLEDRunsDetected = false;
-// 					cout << "seasonID: "   << sortedEvents[c->m_indexes[0]].m_seasonID;
-// 					cout << " clusterID: " << sortedEvents[c->m_indexes[0]].m_clusterID;
-// 					cout << " runID: "     << sortedEvents[c->m_indexes[0]].m_runID << "\n";
-// 				}
-
-// 			}
-// 		}
-// 	}
-
-// 	if(noLEDRunsDetected) cout << "No runs detected." << endl;
-// 	cout << endl;
-// }
-
-// //returns index of given run in vector of RunInfo
-// int FindRunInfo(int seasonID, int clusterID, int runID)
-// {
-// 	for(int i = 0; i < runs.size(); i++)
-// 	{
-// 		if((runs[i].m_seasonID == seasonID) and (runs[i].m_clusterID == clusterID) and (runs[i].m_runID == runID))
-// 			return i;
-// 	}
-
-// 	return -1;
-// }
-
-// void RandomCoincidences(long int maxTimeDiff,double maxAngDist = 20)
-// {
-// 	int iterations = 10000;
-
-// 	for (int i = 0; i < iterations; ++i)
-// 	{
-// 		FindCoincidences(IsTAEC,(i+1)*20,maxTimeDiff,maxAngDist,20.0);
-// 	}
-
-// 	random_coincidences->Fill(0.0,2.1,iterations-random_coincidences->GetEntries());
-// 	random_coincidences->GetXaxis()->SetTitle("#NoC");
-// 	random_coincidences->GetYaxis()->SetTitle("#NoE");
-// 	random_coincidences->Draw("Lego2");
-// }
-
 int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 {
 #if PROFILLING
 	Instrumentor::Get().BeginSession("Session Name");
 #endif
-{
-	PROFILE_SCOPE("MAIN");
 
 	int LCut;
 	long int maxTimeDiff;
@@ -1188,18 +1196,22 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	eloop->DrawFluxGraphs();
 	eloop->SaveAll();
 
-// 	// FindCoincidences(IsTAEC,0,maxTimeDiff,360.0,20.0);
-// 	// FindCoincidences(IsTAEC,0,maxTimeDiff,20.0,20.0);
-// 	// FindCoincidences(IsTAEC,0,maxTimeDiff,10.0,20.0);
+	eloop->cfinder->FindTAEC(maxTimeDiff,360.0,20.0);
+	eloop->cfinder->WriteTAEC(maxTimeDiff,360.0,20.0);
+	eloop->cfinder->FindTAEC(maxTimeDiff,20.0,20.0);
+	eloop->cfinder->WriteTAEC(maxTimeDiff,20.0,20.0);
+	eloop->cfinder->FindTAEC(maxTimeDiff,10.0,20.0);
+	eloop->cfinder->WriteTAEC(maxTimeDiff,10.0,20.0);
 
-// 	//RandomCoincidences(maxTimeDiff);
+	//RandomCoincidences(maxTimeDiff);
 
-// 	WarnLEDMatrixRun();
+	eloop->cfinder->WarnLEDMatrixRun();
 
-// 	gStyle->SetOptStat(111111);
+#if PROFILLING
+	Instrumentor::Get().EndSession();
+#endif
 
-// 	//DrawResults(val);
-// 	SaveResults(year,cluster);
+	return 0;
 
 // 	//fixed window events (turn on energyCut)
 // 	double window = 6; //angle window in degrees
@@ -1233,21 +1245,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 // 	TCanvas* c3 = new TCanvas("c3", "", 1000, 500);
 // 	h_density_stats->Draw();
 
-
-// 	cout << "nProcessedEvents: " << nProcessedEvents << endl;
-// 	TString outputFileName = Form("filteredCascades_y%dc%d.root",year,cluster);
-// 	TFile *newFile = new TFile(outputFileName,"recreate");
-// 	filteredCascades->Write();
-// 	newFile->Close();
-
 // 	//for(auto ev : sortedEvents) cout << ev << "\n";
-}
-
-// #if PROFILLING
-// 	Instrumentor::Get().EndSession();
-// #endif
-
-	return 0;
 }
 
 int main(int argc, char** argv) 
