@@ -645,6 +645,8 @@ void CoincidenceFinder::RandomCoincidences(long int maxTimeDiff,double maxAngDis
 	random_coincidences->Fill(0.0,2.1,iterations-random_coincidences->GetEntries());
 	random_coincidences->GetXaxis()->SetTitle("#NoC");
 	random_coincidences->GetYaxis()->SetTitle("#NoE");
+
+	TCanvas* c1 = new TCanvas("c1", "", 1000, 500);
 	random_coincidences->Draw("Lego2");
 }
 
@@ -1193,7 +1195,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	eloop->UseLEDfilter();
 	eloop->UseContainedFilter(40);
 	if(DoLikelihoodCut) eloop->UseLikelihoodFilter(1.5);
-	//eloop->UseEnergyFilter(energyCut);
+	eloop->UseEnergyFilter(energyCut);
 
 	eloop->AddDrawable(aitoff);
 	eloop->AddDrawable(flux_hist);
@@ -1209,49 +1211,49 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	eloop->cfinder->FindTAEC(maxTimeDiff,10.0,20.0);
 	eloop->cfinder->WriteTAEC(maxTimeDiff,10.0,20.0);
 
-	//RandomCoincidences(maxTimeDiff);
+	eloop->cfinder->RandomCoincidences(maxTimeDiff);
 
 	eloop->cfinder->WarnLEDMatrixRun();
+
+	//fixed window events (turn on energyCut)
+	double window = 6; //angle window in degrees
+	int step = 3;
+
+	TString title = Form("Events E > %f TeV per %f degree window;Right ascension;Declination",energyCut,window);
+	TH2F* h_density = new TH2F("h_density",title,360/step,-180,180,180/step+1,-90,91);
+	TH1F* h_density_stats = new TH1F("h_density_stats","Bins with given number of events;#NoE;#NoB",16,0,16);
+
+	for(int ra = -180; ra < 181; ra += step)
+	{
+		for(int dec = -90; dec < 91; dec += step)
+		{
+			int noe = 0;
+
+			for(auto ev : eloop->sortedEvents)
+			{
+				if(ev.angDist(ra,dec) < window)
+				{
+					h_density->Fill(ra,dec);
+					noe++;
+				}
+			}
+			h_density_stats->Fill(noe);
+		}
+	}
+
+	TCanvas* c2 = new TCanvas("c2", "", 1000, 500);
+	h_density->Draw("Lego2");
+
+	TCanvas* c3 = new TCanvas("c3", "", 1000, 500);
+	h_density_stats->Draw();
+
+	//for(auto ev : sortedEvents) cout << ev << "\n";
 
 #if PROFILLING
 	Instrumentor::Get().EndSession();
 #endif
 
 	return 0;
-
-// 	//fixed window events (turn on energyCut)
-// 	double window = 6; //angle window in degrees
-// 	int step = 3;
-
-// 	TString title = Form("Events E > %f TeV per %f degree window;Right ascension;Declination",energyCut,window);
-// 	TH2F* h_density = new TH2F("h_density",title,360/step,-180,180,180/step+1,-90,91);
-// 	TH1F* h_density_stats = new TH1F("h_density_stats","Bins with given number of events;#NoE;#NoB",16,0,16);
-
-// 	for(int ra = -180; ra < 181; ra += step)
-// 	{
-// 		for(int dec = -90; dec < 91; dec += step)
-// 		{
-// 			int noe = 0;
-
-// 			for(auto ev : sortedEvents)
-// 			{
-// 				if(ev.angDist(ra,dec) < window)
-// 				{
-// 					h_density->Fill(ra,dec);
-// 					noe++;
-// 				}
-// 			}
-// 			h_density_stats->Fill(noe);
-// 		}
-// 	}
-
-// 	TCanvas* c2 = new TCanvas("c2", "", 1000, 500);
-// 	h_density->Draw("Lego2");
-
-// 	TCanvas* c3 = new TCanvas("c3", "", 1000, 500);
-// 	h_density_stats->Draw();
-
-// 	//for(auto ev : sortedEvents) cout << ev << "\n";
 }
 
 int main(int argc, char** argv) 
