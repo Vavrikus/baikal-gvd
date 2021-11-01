@@ -31,7 +31,7 @@
 		{
 			for(int i = 0; i < m_Timers.size(); i++) 
 			{	
-				if(std::strcmp(m_Timers[i].m_Name,name) == 0) return &m_Timers[i];
+				if(strcmp(m_Timers[i].m_Name,name) == 0) return &m_Timers[i];
 			}
 
 			m_Timers.emplace_back(name);

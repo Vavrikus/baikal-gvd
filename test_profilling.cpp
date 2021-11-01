@@ -22,4 +22,4 @@ int main()
 	return 0;
 }
 
-void profiling(){main();}
+void test_profiling(){main();}

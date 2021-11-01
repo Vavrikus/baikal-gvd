@@ -4,20 +4,21 @@
 #include "TLatex.h"
 #include "TH2F.h"
 #include "TGraph.h"
+#include "TStyle.h"
 
-extern constexpr double PI = 3.14159265358979323;
+static constexpr double PI = 3.14159265358979323;
 
 //coordinates of Baikal-GVD converted to radians (assuming east longitude)
-extern constexpr double latB = PI * 51.768 / 180.0;  //about 3.6 km south from 107 km station
-extern constexpr double lonB = PI * 104.399 / 180.0; //about 3.6 km south from 107 km station
+static constexpr double latB = PI * 51.768 / 180.0;  //about 3.6 km south from 107 km station
+static constexpr double lonB = PI * 104.399 / 180.0; //about 3.6 km south from 107 km station
 
 //IceCube coordinates
-extern constexpr double latI = PI * 89.99 / 180.0;
-extern constexpr double lonI = PI * -63.453056 / 180.0;
+static constexpr double latI = PI * 89.99 / 180.0;
+static constexpr double lonI = PI * -63.453056 / 180.0;
 
 //ANTARES coordinates
-extern constexpr double latA = PI * 42.8 / 180.0;
-extern constexpr double lonA = PI * 6.167 / 180.0;
+static constexpr double latA = PI * 42.8 / 180.0;
+static constexpr double lonA = PI * 6.167 / 180.0;
 
 inline double radToDeg(const double& r) {return 180*r/PI;} //convert radians to degrees
 inline double degToRad(const double& d) {return PI*d/180;} //convert degrees to radians
@@ -26,7 +27,7 @@ inline double degToRad(const double& d) {return PI*d/180;} //convert degrees to 
 inline double capAngle(const double& sideAngle) {return 2*PI*(1-std::cos(sideAngle));}
 
 //distance between two points with given equatorial coordinates (degrees)
-double angularDistance(const double& ra, const double& dec, const double& ra2, const double& dec2)
+static double angularDistance(const double& ra, const double& dec, const double& ra2, const double& dec2)
 {
     TVector3 v1(0,0,1);
     v1.SetTheta(degToRad(90+dec));
@@ -40,7 +41,7 @@ double angularDistance(const double& ra, const double& dec, const double& ra2, c
 }
 
 //function for splitting string by whitespace into substrings 
-std::vector<std::string> split(const std::string& str, char separator = ' ')
+static std::vector<std::string> split(const std::string& str, char separator = ' ')
 {
     std::vector<std::string> output;
     int currentPos = 0;
@@ -67,7 +68,7 @@ std::vector<std::string> split(const std::string& str, char separator = ' ')
 //========================== TIME FORMAT CONVERSION ==========================//
 
 //convert UTC time to Unix
-double UTCtoUnix(const int& year, const int& month, const int& day, const int& hours,
+static double UTCtoUnix(const int& year, const int& month, const int& day, const int& hours,
                   const int& minutes, const double& seconds)
 {
     int leapYears = std::floor((year - 1969) / 4);
@@ -125,7 +126,7 @@ struct eqCoor
 };
 
 //calculating local sidereal time in degrees acording to https://www.aa.quae.nl/en/reken/sterrentijd.html
-double LST(double unixTime, double longitude)
+static double LST(double unixTime, double longitude)
 {
     //some constants from the website
     constexpr double l0 = 99.967794687;
@@ -147,7 +148,7 @@ double LST(double unixTime, double longitude)
 }
 
 //trasform from horizontal to equatorial coordinates
-eqCoor horToEq(const horCoor& hor, const double& latDet = latB, const double& lonDet = lonB)
+static eqCoor horToEq(const horCoor& hor, const double& latDet = latB, const double& lonDet = lonB)
 {
     using namespace std;
 
@@ -187,7 +188,7 @@ eqCoor horToEq(const horCoor& hor, const double& latDet = latB, const double& lo
 }
 
 //trasform from equatorial to horizontal coordinates
-horCoor eqToHor(const eqCoor& eq, const double& uTime, const double& latDet = latB, const double& lonDet = lonB)
+static horCoor eqToHor(const eqCoor& eq, const double& uTime, const double& latDet = latB, const double& lonDet = lonB)
 {
     using namespace std;
 
@@ -223,7 +224,7 @@ horCoor eqToHor(const eqCoor& eq, const double& uTime, const double& latDet = la
 }
 
 //transform from shifted spherical coordinates given coordinates of north pole (npoleDec = 90 fails)
-eqCoor shiftSpherTrans(const double& zenithAngle, const double& Azm, const double& npoleRa,
+static eqCoor shiftSpherTrans(const double& zenithAngle, const double& Azm, const double& npoleRa,
 					   const double& npoleDec)
 {
     using namespace std;
@@ -266,7 +267,7 @@ eqCoor shiftSpherTrans(const double& zenithAngle, const double& Azm, const doubl
 struct XY { double x,y; };
 
 //aitoff transform from original drawmap.C file converted to function
-XY toAitoff(double x, double y)
+static XY toAitoff(double x, double y)
 {
 	double z = sqrt(1+cos(degToRad(y))*cos(degToRad(x/2)));
 	double x2 = 180*cos(degToRad(y))*sin(degToRad(x/2))/z;
@@ -276,7 +277,7 @@ XY toAitoff(double x, double y)
 }
 
 //draws labels on aitoff map
-void drawLabels()
+static void drawLabels()
 {
 	//declination labels
 	int stepDec = 15;
@@ -313,7 +314,7 @@ void drawLabels()
 }
 
 //https://root-forum.cern.ch/t/how-to-plot-skymaps-with-root/4663/3 with minor changes
-TH2F* drawmap(const char* title)
+static TH2F* drawmap(const char* title)
 {
 	TH2F* skymap = new TH2F("Blank skymap","Blank skymap",40,-210,210,20,-105,105);
 
