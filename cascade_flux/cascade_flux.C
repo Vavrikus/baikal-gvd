@@ -50,9 +50,9 @@ struct Event
 	double m_chi2AfterCaus, m_chi2AfterTFilter, m_cascTime, m_likelihood, m_likelihoodHitOnly;
 	double m_qTotal;
 	double m_rightAscension, m_declination;
-	TVector3* m_position = new TVector3();
-	TVector3* m_mcPosition = new TVector3();
-	TTimeStamp* m_eventTime = new TTimeStamp();
+	TVector3 m_position;
+	TVector3 m_mcPosition;
+	TTimeStamp m_eventTime;
 	int m_coincidenceID = -1; //-1 if not in any coincidence
 
 	//returns angular distance between this event and event in argument
@@ -88,26 +88,26 @@ struct Event
 	void LowTimeWarning()
 	{
 		//event before 01/01/2016 warning
-		if(m_eventTime->GetSec() < 1451606400)
+		if(m_eventTime.GetSec() < 1451606400)
 		{
 			cout << "Event " << m_eventID << " has low eventTime: ";
-			m_eventTime->Print();
+			m_eventTime.Print();
 			cout << " seasonID: " << m_seasonID << " clusterID: " << m_clusterID << " runID: " << m_runID << "\n";
 		}
 	}
 
 	double Dist(const Event& ev) const
 	{
-		double dx2 = pow(((*(this->m_position))(0) - (*(ev.m_position))(0)),2);
-		double dy2 = pow(((*(this->m_position))(1) - (*(ev.m_position))(1)),2);
-		double dz2 = pow(((*(this->m_position))(2) - (*(ev.m_position))(2)),2);
+		double dx2 = pow(((this->m_position)(0) - (ev.m_position)(0)),2);
+		double dy2 = pow(((this->m_position)(1) - (ev.m_position)(1)),2);
+		double dz2 = pow(((this->m_position)(2) - (ev.m_position)(2)),2);
 
 		return TMath::Sqrt(dx2+dy2+dz2);
 	}
 
 	bool IsContained(double distFromCluster = 0) const
 	{
-		if (TMath::Sqrt(TMath::Power(m_position->X(),2)+TMath::Power(m_position->Y(),2)) < 60+distFromCluster && TMath::Abs(m_position->Z()) < 265+distFromCluster)
+		if (TMath::Sqrt(TMath::Power(m_position.X(),2)+TMath::Power(m_position.Y(),2)) < 60+distFromCluster && TMath::Abs(m_position.Z()) < 265+distFromCluster)
 			return true;
 		else
 			return false;
@@ -115,8 +115,8 @@ struct Event
 
 	bool IsUncontained(double near, double far) const
 	{
-		double horizontalDist = TMath::Sqrt(TMath::Power(m_position->X(),2)+TMath::Power(m_position->Y(),2));
-		double verticalDist = TMath::Abs(m_position->Z());
+		double horizontalDist = TMath::Sqrt(TMath::Power(m_position.X(),2)+TMath::Power(m_position.Y(),2));
+		double verticalDist = TMath::Abs(m_position.Z());
 		if ((horizontalDist < far && horizontalDist > near && verticalDist < 263) || (horizontalDist < far && verticalDist < 263+(far-60) && verticalDist > 263+(near-60)))
 			return true;
 		else
@@ -139,7 +139,7 @@ struct Event
 
 	static bool IsEarlier(const Event& ev1, const Event& ev2)
 	{
-		if(ev1.m_eventTime->GetSec() < ev2.m_eventTime->GetSec()) return true;
+		if(ev1.m_eventTime.GetSec() < ev2.m_eventTime.GetSec()) return true;
 		else return false;
 	}
 };
@@ -148,7 +148,7 @@ std::ostream& operator<<(std::ostream& stream, const Event& ev)
 {
 	stream << "     =====================================  EVENT INFO  =====================================\n";
 	stream << "     Time Stamp:\n          ";
-	ev.m_eventTime->Print();
+	ev.m_eventTime.Print();
 
 	stream << "\n     IDs:\n     ";
     stream << "     eventID: " << ev.m_eventID << ", coincidenceID: " << ev.m_coincidenceID;
@@ -160,8 +160,8 @@ std::ostream& operator<<(std::ostream& stream, const Event& ev)
     stream << "     theta = " << ev.m_theta/TMath::Pi()*180 << ", sigma = " << ev.m_thetaSigma/TMath::Pi()*180;
     stream << ", phi = " << ev.m_phi/TMath::Pi()*180 << ", sigma = " << ev.m_phiSigma/TMath::Pi()*180;
     stream << ", direction sigma = " << ev.m_directionSigma << "\n     ";
-    stream << "     Position (XYZ): " << ev.m_position->X();
-    stream << " " << ev.m_position->Y() << " " << ev.m_position->Z() << "\n     ";
+    stream << "     Position (XYZ): " << ev.m_position.X();
+    stream << " " << ev.m_position.Y() << " " << ev.m_position.Z() << "\n     ";
     stream << "     right ascension = " << ev.m_rightAscension/TMath::Pi()*180;
     stream << ", declination = " << ev.m_declination/TMath::Pi()*180 << "\n\n";
 
@@ -182,8 +182,8 @@ std::ostream& operator<<(std::ostream& stream, const Event& ev)
     stream << "     MC data:\n     ";
     stream << "     energy = " << ev.m_mcEnergy << " TeV, theta = " << ev.m_mcTheta/TMath::Pi()*180; 
     stream << ", phi = " << ev.m_mcPhi/TMath::Pi()*180 << "\n     ";
-    stream << "     Position (XYZ): " << ev.m_mcPosition->X();
-    stream << " " << ev.m_mcPosition->Y() << " " << ev.m_mcPosition->Z() << endl;
+    stream << "     Position (XYZ): " << ev.m_mcPosition.X();
+    stream << " " << ev.m_mcPosition.Y() << " " << ev.m_mcPosition.Z() << endl;
 
     return stream;
 }
@@ -414,8 +414,8 @@ std::ostream& operator<<(std::ostream& stream, const CoincidenceFinder::Coincide
 	for(int i = 1; i < c.m_indexes.size(); i++)
 	{
 		if(i!=1) cout << ", ";
-		stream <<  c.cfinder->sortedEvents[c.m_indexes[i]].m_eventTime->GetSec()
-				  -c.cfinder->sortedEvents[c.m_indexes[i-1]].m_eventTime->GetSec(); 
+		stream <<  c.cfinder->sortedEvents[c.m_indexes[i]].m_eventTime.GetSec()
+				  -c.cfinder->sortedEvents[c.m_indexes[i-1]].m_eventTime.GetSec(); 
 	}
 
 	stream << "\nMinimal angular distance: ";
@@ -443,7 +443,7 @@ std::ostream& operator<<(std::ostream& stream, const CoincidenceFinder::Coincide
 //and if both events have greater energy (TeV) than given 
 bool CoincidenceFinder::IsTAEC(int i, int j, long int maxTimeDiff, double maxAngDist = 360, double minEnergy = 0)
 {
-	bool timeOK   = sortedEvents[j].m_eventTime->GetSec() - sortedEvents[i].m_eventTime->GetSec() <= maxTimeDiff;
+	bool timeOK   = sortedEvents[j].m_eventTime.GetSec() - sortedEvents[i].m_eventTime.GetSec() <= maxTimeDiff;
 	bool angleOK  = sortedEvents[i].angDist(sortedEvents[j]) <= maxAngDist;
 	bool energyOK = (sortedEvents[i].m_energy >= minEnergy) and (sortedEvents[j].m_energy >= minEnergy);
 	
@@ -453,7 +453,7 @@ bool CoincidenceFinder::IsTAEC(int i, int j, long int maxTimeDiff, double maxAng
 //returns if events with indexes i,j satisfy time, run and position criterions
 bool CoincidenceFinder::IsTRPC(int i, int j, long int maxTimeDiff = 3600, double maxDist = 5)
 {
-	bool timeOK = sortedEvents[j].m_eventTime->GetSec() - sortedEvents[i].m_eventTime->GetSec() <= maxTimeDiff;
+	bool timeOK = sortedEvents[j].m_eventTime.GetSec() - sortedEvents[i].m_eventTime.GetSec() <= maxTimeDiff;
 	bool posOK  = sortedEvents[i].Dist(sortedEvents[j]) <= maxDist;
 	bool yearOK	= sortedEvents[i].m_seasonID  == sortedEvents[j].m_seasonID;
 	bool clusOK = sortedEvents[i].m_clusterID == sortedEvents[j].m_clusterID;
@@ -529,7 +529,7 @@ void CoincidenceFinder::FindCoincidences(bool(CoincidenceFinder::*IsCoin)(int, i
 			{
 				//add random shift
 				//cout << "old " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";
-				sortedEvents[i].m_eventTime->SetSec(sortedEvents[i].m_eventTime->GetSec()+random_offset);
+				sortedEvents[i].m_eventTime.SetSec(sortedEvents[i].m_eventTime.GetSec()+random_offset);
 				//cout << "new " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";
 
 				int lower_bound  = i;
@@ -539,7 +539,7 @@ void CoincidenceFinder::FindCoincidences(bool(CoincidenceFinder::*IsCoin)(int, i
 				{
 					int mid = floor((higher_bound+lower_bound)/2.0);
 					//cout << lower_bound << " " << mid << " " << higher_bound << endl;
-					if(sortedEvents[i].m_eventTime->GetSec() > sortedEvents[mid].m_eventTime->GetSec())
+					if(sortedEvents[i].m_eventTime.GetSec() > sortedEvents[mid].m_eventTime.GetSec())
 						lower_bound = mid;
 					else higher_bound = mid;
 				}
@@ -560,7 +560,7 @@ void CoincidenceFinder::FindCoincidences(bool(CoincidenceFinder::*IsCoin)(int, i
 			//searching events coinciding with event i
 			for (int j = startEvent; j < sortedEvents.size(); ++j)
 			{
-				if(sortedEvents[j].m_eventTime->GetSec()-maxdt > sortedEvents[i].m_eventTime->	GetSec())
+				if(sortedEvents[j].m_eventTime.GetSec()-maxdt > sortedEvents[i].m_eventTime.GetSec())
 					break;
 
 				if((this->*IsCoin)(i,j,maxdt,a...) and (sortedEvents[j].m_coincidenceID == -1))
@@ -586,7 +586,7 @@ void CoincidenceFinder::FindCoincidences(bool(CoincidenceFinder::*IsCoin)(int, i
 			if(random_offset != 0) //remove random shift
 			{
 				//cout << "old2 " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";				
-				sortedEvents[i].m_eventTime->SetSec(sortedEvents[i].m_eventTime->GetSec()-random_offset);
+				sortedEvents[i].m_eventTime.SetSec(sortedEvents[i].m_eventTime.GetSec()-random_offset);
 				//cout << "new2 " << i << " " << sortedEvents[i].m_eventTime.GetSec() << "\n";
 			}
 		}
@@ -658,6 +658,9 @@ private:
 	vector<FilterFn> filters;
 	vector<IDrawable*> drawables;
 	Event current_ev;
+	TVector3* position = new TVector3();
+	TVector3* mcPosition = new TVector3();
+	TTimeStamp* eventTime = new TTimeStamp();
 
 	map<TString,tuple<TGraph*,TGraph*>> flux_graphs;
 	map<TString,TCanvas*> flux_canv;
@@ -795,13 +798,13 @@ void EventLoop::SetUpTTrees()
 	reconstructedCascades.SetBranchAddress("directionSigma", 	   &current_ev.m_directionSigma);
 	reconstructedCascades.SetBranchAddress("declination",		   &current_ev.m_declination);
 	reconstructedCascades.SetBranchAddress("rightAscension",	   &current_ev.m_rightAscension);
-	reconstructedCascades.SetBranchAddress("position", 			   &current_ev.m_position);
-	reconstructedCascades.SetBranchAddress("eventTime",			   &current_ev.m_eventTime);
+	reconstructedCascades.SetBranchAddress("position", 			   &position);
+	reconstructedCascades.SetBranchAddress("eventTime",			   &eventTime);
 	reconstructedCascades.SetBranchAddress("time", 				   &current_ev.m_cascTime);
 	reconstructedCascades.SetBranchAddress("mcEnergy", 			   &current_ev.m_mcEnergy);
 	reconstructedCascades.SetBranchAddress("mcTheta", 			   &current_ev.m_mcTheta);
 	reconstructedCascades.SetBranchAddress("mcPhi", 			   &current_ev.m_mcPhi);
-	reconstructedCascades.SetBranchAddress("mcPosition", 		   &current_ev.m_mcPosition);
+	reconstructedCascades.SetBranchAddress("mcPosition", 		   &mcPosition);
 	reconstructedCascades.SetBranchAddress("likelihood", 		   &current_ev.m_likelihood);
 	reconstructedCascades.SetBranchAddress("likelihoodHitOnly",    &current_ev.m_likelihoodHitOnly);
 	reconstructedCascades.SetBranchAddress("qTotal", 			   &current_ev.m_qTotal);
@@ -876,6 +879,9 @@ void EventLoop::RunLoop()
 	{
 		PrintProgress(i,reconstructedCascades.GetEntries());
 		reconstructedCascades.GetEntry(i);
+		current_ev.m_position   = *position;
+		current_ev.m_mcPosition = *mcPosition;
+		current_ev.m_eventTime  = *eventTime;
 		if(!CheckFilters()) continue;
 
 		filteredCascades->Fill();
@@ -1125,7 +1131,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 			flux_hist->drawmap[hist_key]->SetLineColor(color);	
 		}
 
-		flux_hist->drawmap[hist_key]->Fill(e.m_eventTime->GetSec()-unix1995-GetStartTime(e.m_seasonID)+GetStartTime(2016)); //1970 unix to 1995 unix
+		flux_hist->drawmap[hist_key]->Fill(e.m_eventTime.GetSec()-unix1995-GetStartTime(e.m_seasonID)+GetStartTime(2016)); //1970 unix to 1995 unix
 	};
 	flux_hist->SetFillFunc(fillFlux);
 
@@ -1187,7 +1193,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	eloop->UseLEDfilter();
 	eloop->UseContainedFilter(40);
 	if(DoLikelihoodCut) eloop->UseLikelihoodFilter(1.5);
-	eloop->UseEnergyFilter(energyCut);
+	//eloop->UseEnergyFilter(energyCut);
 
 	eloop->AddDrawable(aitoff);
 	eloop->AddDrawable(flux_hist);
