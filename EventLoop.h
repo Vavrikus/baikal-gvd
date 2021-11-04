@@ -180,7 +180,8 @@ public:
 	DrawType* drawsingle;
 
 public:
-	DrawSingle() {drawsingle = new DrawType();}
+	template<typename... args>
+	DrawSingle(args... a) {drawsingle = new DrawType(a...);}
 
 	void Fill(const Event& e) override {fillfunc(e);}
 	void Draw() override {drawfunc();}
