@@ -1,5 +1,8 @@
 #include "../EventLoop.h"
 
+#include "TF1.h"
+#include "TSpline.h"
+
 double GetIQR(TH1* hist)
 {
 	double quartils[2];
@@ -19,7 +22,7 @@ void OptimalBins(TH1F* hist, EventLoop* eloop)
 	if(oldbins != newbins)
 	{
 		delete hist;
-		hist = new TH1F("h_sindec","Filtered cascades cosine of theta distribution",newbins,-1.0,1.0);
+		hist = new TH1F("h_costheta","Filtered cascades cosine of theta distribution",newbins,-1.0,1.0);
 		eloop->sortedEvents.clear();
 		eloop->SetUpTTrees();
 		eloop->RunLoop();
@@ -50,16 +53,69 @@ Double_t spline_5nodes(Double_t *x, Double_t *par)
 	Double_t b1 = par[10];
 	Double_t e1 = par[11];
 
-	TSpline5 sp3("sp3", xn, yn, 5, "b1e1", b1, e1);
+	TSpline3 sp3("sp3", xn, yn, 5, "b1e1", b1, e1);
 
 	return sp3.Eval(xx);
 }
 
 template<int N>
-double spline(double* x, double* par)
+class NSpline 
 {
-	
-}
+	typedef std::function<double(double*,double*)> EvalFn;
+
+private:
+	double node_pos[N];
+	bool FixDer1 = false;
+	bool FixDer2 = false;
+	double der1,der2;
+
+public:
+	NSpline(const double node_pos[N])
+	{
+		for (int i = 0; i < N; ++i) this->node_pos[i] = node_pos[i];
+	}
+
+	void SetDer1(double der1) {this->der1 = der1; FixDer1 = true;}
+	void SetDer2(double der2) {this->der2 = der2; FixDer2 = true;}
+
+	double Eval(double* x, double* par)
+	{
+		/*Fit parameters:
+		par[0-N-1]=X of nodes (to be fixed in the fit!)
+		par[N-2N-1]=Y of nodes
+		par[2N-2N+1]=first derivative at begin and end (to be fixed in the fit!)
+		*/
+
+		for (int i = 0; i < N; ++i) par[i] = node_pos[i];
+
+		Double_t xx = x[0];
+
+		Double_t xn[N];
+		Double_t yn[N];
+
+		for (int i = 0; i < N; ++i) xn[i] = par[i];
+		for (int i = 0; i < N; ++i) yn[i] = par[N+i];
+
+		if(FixDer1) par[2*N]   = der1;
+		if(FixDer2) par[2*N+1] = der2;
+
+		Double_t b1 = par[2*N];
+		Double_t e1 = par[2*N+1];
+
+		TSpline3 sp3("sp3", xn, yn, N, "b1e1", b1, e1);
+
+		return sp3.Eval(xx);		
+	}
+
+	EvalFn GetEval()
+	{
+		return [this](double* a, double* b)
+		{
+			return this->Eval(a,b);
+		};
+	}
+
+};
 
 int data_pdf(int data = 0, int year = -1, int cluster = -1)
 {
@@ -105,24 +161,37 @@ int data_pdf(int data = 0, int year = -1, int cluster = -1)
 	typedef std::function<void(const Event&)> FillFn;
 	typedef std::function<void()> DrawFn;
 
-	DrawSingle<TH1F>* sindec = new DrawSingle<TH1F>("h_sindec","Filtered cascades cosine of theta distribution",1000000,-1.0,1.0);
+	DrawSingle<TH1F>* costheta = new DrawSingle<TH1F>("h_costheta","Filtered cascades cosine of theta distribution",46,-1.0,1.0);
 
-	FillFn fill_sindec = [&sindec](const Event& e)
+	FillFn fill_costheta = [&costheta](const Event& e)
 	{
-		sindec->drawsingle->Fill(cos(e.m_theta));
+		costheta->drawsingle->Fill(cos(e.m_theta));
 	};
-	sindec->SetFillFunc(fill_sindec);
+	costheta->SetFillFunc(fill_costheta);
 
-	eloop->AddDrawable(sindec);
+	eloop->AddDrawable(costheta);
 	eloop->RunLoop();
 
-	OptimalBins(sindec->drawsingle,eloop);
+	// OptimalBins(costheta->drawsingle,eloop);
 
-	TF1 *f_spline5 = new TF1("f_spline5", spline_5nodes, -1, 0.5, 12); // npars = 2*nodes+2
-	sindec->drawsingle->Fit(f_spline5,"M","",-1,0.5);
-	sindec->drawsingle->Fit(f_spline5,"L","",-1,0.5);
-	//sindec->drawsingle->Fit("pol9","L","",-1,0.5);
-	sindec->drawsingle->Draw();
+	const int nodes = 10;
+	const double low = -1;
+	const double high = 1;
+	const double spline_nodes[nodes] = {low,-0.8,-0.6,-0.4,-0.2,0,0.2,0.4,0.6,high};
+
+	NSpline<nodes>* s= new NSpline<nodes>(spline_nodes);
+	s->SetDer2(0);
+
+	TF1* f_spline = new TF1("f_spline", s->GetEval(), low, high, 2*nodes+2);
+	costheta->drawsingle->Fit(f_spline,"M","",low, high);
+	costheta->drawsingle->Fit(f_spline,"L","",low, high);
+
+	TCanvas* c1 = new TCanvas("c_costheta","c_costheta");
+	costheta->drawsingle->Draw();
+
+	TFile* outputFile = new TFile("cos_theta.root","RECREATE");
+	costheta->drawsingle->Write();
+	f_spline->Write();
 
 	return 0;
 }
