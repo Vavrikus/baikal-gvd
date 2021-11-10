@@ -54,7 +54,7 @@ struct Event
 	}
 
 	//returns angular distance from given point on sky (input and output in degrees)
-	double angDist(double ra, double dec)
+	double angDist(double ra, double dec) const
 	{
 	    TVector3 v1(0,0,1);
 	    v1.SetTheta(TMath::Pi()/2.0+this->m_declination);
