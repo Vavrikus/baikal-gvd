@@ -6,6 +6,8 @@
 #include "../Instrumentor.h"
 
 #include <fstream>
+#include <mutex>
+#include <thread>
 
 #include "TF1.h"
 #include "TFile.h"
@@ -203,18 +205,22 @@ int skyfit()
 			sigDec = -90+180*j/bins;
 
 			fit(nSignal,nSignalSigma);
-			// cout << "nSignal: " << nSignal << " testStatistic: " << testStatistic(nSignal) << endl; 
+
 			h_nSignal->SetBinContent(i,j,nSignal);
 			h_testStat->SetBinContent(i,j,testStatistic(nSignal));
 		}
 		cout << i << endl;
 	}
 
-	TCanvas* c1 = new TCanvas();
+	TCanvas* c1 = new TCanvas("c_nSig","nSignal map");
 	h_nSignal->Draw("aitoff");
 
-	TCanvas* c2 = new TCanvas();
+	TCanvas* c2 = new TCanvas("c_testStat","Test statistic map");
 	h_testStat->Draw("aitoff");
+
+	TFile* outputFile = new TFile("skyfit.root","RECREATE");
+	c1->Write();
+	c2->Write();
 
 	return 0;
 }
