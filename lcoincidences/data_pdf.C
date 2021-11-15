@@ -182,8 +182,6 @@ int data_pdf(int data = 0, int year = -1, int cluster = -1)
 	NSpline<nodes>* s= new NSpline<nodes>(spline_nodes);
 	s->SetDer2(0);
 
-	costheta->drawsingle->Scale(1./costheta->drawsingle->Integral());
-
 	TF1* f_spline = new TF1("f_spline", s->GetEval(), low, high, 2*nodes+2);
 	costheta->drawsingle->Fit(f_spline,"M","",low, high);
 	costheta->drawsingle->Fit(f_spline,"L","",low, high);
@@ -193,6 +191,7 @@ int data_pdf(int data = 0, int year = -1, int cluster = -1)
 
 	TFile* outputFile = new TFile("cos_theta.root","RECREATE");
 	costheta->drawsingle->Write();
+	f_spline->SetNormalized(true);
 	f_spline->Write();
 	eloop->filteredCascades->Write();
 
