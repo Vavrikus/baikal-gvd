@@ -51,7 +51,7 @@ double signalProbability(const Event& ev)
 
 double backgroundProbability(const Event& ev)
 {
-	double positionProb = costheta->Eval(cos(ev.m_theta));
+	double positionProb = sin(ev.m_theta)*costheta->Eval(cos(ev.m_theta));
 	double energyProb	= std::pow(ev.m_energy,-3.7)/eNormBack;
 
 	return positionProb*energyProb;
@@ -119,7 +119,7 @@ void fit(double& nSignal, double& nSignalSigma)
 {
 	PROFILE_FUNCTION();
 
-	gFitter->SetParameter(0,"nSignal",nSignal,0.1,0,sortedEvents.size());
+	gFitter->SetParameter(0,"nSignal",nSignal,0.1,-10000,sortedEvents.size());
 
 	double arglist[10] = {500,0.1}; //max iterations, step size
 	gFitter->ExecuteCommand("MIGRAD",arglist,2); //last one num of prints
@@ -134,6 +134,9 @@ int skyfit()
 	TTree* filteredCascades;
 	pdf_input->GetObject("f_spline",costheta);
 	pdf_input->GetObject("filteredCascades",filteredCascades);
+
+	costheta->SetNormalized(true);
+	cout << "costheta(-0.5): " << (*costheta)(-0.5) << endl; 
 
 	Event current_ev;
 	TVector3* position = new TVector3();
@@ -185,23 +188,23 @@ int skyfit()
 
 	sort(sortedEvents.begin(), sortedEvents.end(),Event::IsEarlier);
 
-	double nSignal = 1;
+	double nSignal = 50;
 	double nSignalSigma;
 
 	SetFitter(1,false);
 
-	int bins = 1000;
+	int bins = 25;
 
-	TH2F* h_nSignal  = new TH2F("h_nSignal","nSignal map",bins,-180,180,bins,-90,90);
-	TH2F* h_testStat = new TH2F("h_testStat","Test statistic map",bins,-180,180,bins,-90,90);
+	TH2F* h_nSignal  = new TH2F("h_nSignal","nSignal map",2*bins,-180,180,bins,-90,90);
+	TH2F* h_testStat = new TH2F("h_testStat","Test statistic map",2*bins,-180,180,bins,-90,90);
 
-	for (int i = 0; i < bins; ++i)
+	for (int i = 0; i < (2*bins); ++i)
 	{
 		for (int j = 0; j < bins; ++j)
 		{
 			nSignal = 1;
 
-			sigRa  = -180+360*i/bins;
+			sigRa  = -180+360*i/(2*bins);
 			sigDec = -90+180*j/bins;
 
 			fit(nSignal,nSignalSigma);
@@ -213,10 +216,15 @@ int skyfit()
 	}
 
 	TCanvas* c1 = new TCanvas("c_nSig","nSignal map");
-	h_nSignal->Draw("aitoff");
+	gStyle->SetOptStat("0000");
+	h_nSignal->Draw("z aitoff");
+	h_nSignal->GetXaxis()->SetRangeUser(-200,200);
+	h_nSignal->GetYaxis()->SetRangeUser(-105,105);
+	// drawmap("");
+	// drawLabels();
 
 	TCanvas* c2 = new TCanvas("c_testStat","Test statistic map");
-	h_testStat->Draw("aitoff");
+	h_testStat->Draw("z aitoff");
 
 	TFile* outputFile = new TFile("skyfit.root","RECREATE");
 	c1->Write();

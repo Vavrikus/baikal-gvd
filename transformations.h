@@ -314,9 +314,9 @@ static void drawLabels()
 }
 
 //https://root-forum.cern.ch/t/how-to-plot-skymaps-with-root/4663/3 with minor changes
-static TH2F* drawmap(const char* title)
+static void drawmap(const char* title)
 {
-	TH2F* skymap = new TH2F("Blank skymap","Blank skymap",40,-210,210,20,-105,105);
+	// TH2F* skymap = new TH2F("Blank skymap","Blank skymap",40,-210,210,20,-105,105);
 
 	gStyle->SetOptStat(0000);
 		
@@ -353,11 +353,30 @@ static TH2F* drawmap(const char* title)
 		}
 	}
 
-	skymap->Draw("AH");
-	skymap->SetTitle(title);
+	// skymap->Draw("AH same");
+	// skymap->SetTitle(title);
 
-	for(int j=0;j<Nl;++j) latitudes[j]->Draw("c");
-	for(int j=0;j<NL;++j) longitudes[j]->Draw("c");
+    // Draw the grid 
+    TPad *pad2 = new TPad("pad2","",0,0,1,1);
+    pad2->SetFillStyle(4000);
+    pad2->SetFillColor(0);
+    pad2->SetBorderSize(0);
+    pad2->SetFrameBorderMode(0);
+    pad2->SetFrameLineColor(0); 
+    pad2->SetFrameBorderMode(0);
+    pad2->Draw();
+    pad2->cd();
+    Double_t ymin = -105;
+    Double_t ymax = 105;
+    Double_t dy = (ymax-ymin)/0.8; //10 per cent margins top and bottom
+    Double_t xmin = -200;
+    Double_t xmax = 200;
+    Double_t dx = (xmax-xmin)/0.8; //10 per cent margins left and right
 
-	return skymap;
+    pad2->Range(xmin-0.1*dx,ymin-0.1*dy,xmax+0.1*dx,ymax+0.1*dy);
+
+	for(int j=0;j<Nl;++j) latitudes[j]->Draw("l");
+	for(int j=0;j<NL;++j) longitudes[j]->Draw("l");
+
+	// return skymap;
 }
