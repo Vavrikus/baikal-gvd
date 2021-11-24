@@ -1,8 +1,8 @@
+#define PROFILLING 0
 #include "../EventLoop.h"
 #include "../threading.h"
 #include "../transformations.h"
 
-#define PROFILLING 0
 #include "../Instrumentor.h"
 
 #include <fstream>
@@ -63,7 +63,6 @@ TF1* bckg_thetaDist  = new TF1("thetaDist",thetaDistEval,0,TMath::Pi(),0);
 
 double signalProbability(const BasicEvent& ev)
 {
-	PROFILE_FUNCTION();
 	//folded gaussian distribution
 	double positionProb = TMath::Gaus(ev.angDist(sigRa,sigDec), 0, sigPosSigma)*2;
 	double energyProb	= std::pow(ev.m_energy,s_gamma)/eNormSig;
@@ -73,7 +72,6 @@ double signalProbability(const BasicEvent& ev)
 
 double backgroundProbability(const BasicEvent& ev)
 {
-	PROFILE_FUNCTION();
 	double positionProb = abs(sin(ev.m_theta)*costheta->Eval(cos(ev.m_theta)));
 	double energyProb	= std::pow(ev.m_energy,bckg_gamma)/eNormBack;
 
@@ -82,7 +80,6 @@ double backgroundProbability(const BasicEvent& ev)
 
 double probability(const BasicEvent& ev, double nSignal)
 {
-	PROFILE_FUNCTION();
 	return nSignal*signalProbability(ev) + simulatedEvents.size()*backgroundProbability(ev);
 }
 
@@ -185,6 +182,8 @@ void generate_background(int events)
 
 int pseudo_exp(double input_dec, int id, int nSimulations = 10000)
 {
+	PROFILLING_START("pseudo_exp");
+
 	gErrorIgnoreLevel = 6001; //no ROOT errors please
 
 	sigDec = input_dec;
@@ -229,6 +228,8 @@ int pseudo_exp(double input_dec, int id, int nSimulations = 10000)
 	delete costheta;
 	delete gFitter;
 	// enhist->Draw();
+
+	PROFILLING_END();
 
 	return 0;
 }

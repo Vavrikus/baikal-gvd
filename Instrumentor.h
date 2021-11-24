@@ -17,7 +17,9 @@
 #if PROFILLING
 
 #define PROFILE_SCOPE(name) InstrumentationTimer timer##__LINE__(name)
-#define PROFILE_FUNCTION() PROFILE_SCOPE(__PRETTY_FUNCTION__) 
+#define PROFILE_FUNCTION() PROFILE_SCOPE(__PRETTY_FUNCTION__)
+#define PROFILLING_START(name) Instrumentor::Get().BeginSession(name)
+#define PROFILLING_END() Instrumentor::Get().EndSession()
 
 #include <string>
 #include <chrono>
@@ -52,6 +54,7 @@ public:
 
     void BeginSession(const std::string& name, const std::string& filepath = "results.json")
     {
+        cout << "Starting session!\n";
         m_OutputStream.open(filepath);
         WriteHeader();
         m_CurrentSession = new InstrumentationSession{ name };
@@ -59,6 +62,7 @@ public:
 
     void EndSession()
     {
+        cout << "Ending session!\n";
         WriteFooter();
         m_OutputStream.close();
         delete m_CurrentSession;
@@ -142,4 +146,6 @@ private:
 #else
     #define PROFILE_SCOPE(name)
     #define PROFILE_FUNCTION()
+    #define PROFILLING_START(name)
+    #define PROFILLING_END()
 #endif //PROFILLING
