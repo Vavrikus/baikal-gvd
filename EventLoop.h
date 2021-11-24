@@ -25,22 +25,14 @@ const vector<vector<vector<int>>> ledMatrixRuns = {{{2,3,4,5,6,7,8,9,10,11,118,1
 
 constexpr int unix1995 = 788918400;
 
-struct Event
+struct BasicEvent
 {
-	int m_seasonID, m_clusterID, m_runID, m_eventID, m_nHits, m_nHitsAfterCaus;
-	int m_nHitsAfterTFilter, m_nStringsAfterCaus, m_nStringsAfterTFilter, m_nTrackHits;
-	double m_energy, m_theta, m_phi, m_mcEnergy, m_mcTheta, m_mcPhi;
-	double m_energySigma, m_thetaSigma, m_phiSigma, m_directionSigma;
-	double m_chi2AfterCaus, m_chi2AfterTFilter, m_cascTime, m_likelihood, m_likelihoodHitOnly;
-	double m_qTotal;
+	double m_energy, m_theta, m_phi;
 	double m_rightAscension, m_declination;
-	TVector3 m_position;
-	TVector3 m_mcPosition;
 	TTimeStamp m_eventTime;
-	int m_coincidenceID = -1; //-1 if not in any coincidence
 
 	//returns angular distance between this event and event in argument
-	double angDist(const Event& ev) const
+	double angDist(const BasicEvent& ev) const
 	{
 	    TVector3 v1(0,0,1);
 	    v1.SetTheta(TMath::Pi()/2.0+this->m_declination);
@@ -50,7 +42,7 @@ struct Event
 	    v2.SetTheta(TMath::Pi()/2.0+ev.m_declination);
 	    v2.SetPhi(ev.m_rightAscension);
 
-	    return 180.0*v1.Angle(v2)/TMath::Pi();
+	    return radToDeg(v1.Angle(v2));
 	}
 
 	//returns angular distance from given point on sky (input and output in degrees)
@@ -68,6 +60,62 @@ struct Event
 
 	    return radToDeg(v1.Angle(v2));
 	}
+
+	//trasform from horizontal to equatorial coordinates
+	void computeRaDec(const double& latDet = latB, const double& lonDet = lonB)
+	{
+		double alt = -TMath::Pi()/2+m_theta;
+		double azm = 3*TMath::Pi()/2-m_phi;
+
+	    //transform using equations from http://star-www.st-and.ac.uk/~fv/webnotes/chapter7.htm
+	    double sinDec = sin(alt) * sin(latDet) + cos(alt) * cos(azm) * cos(latDet);
+
+	    //making sure asin does not return NaN
+	    if(sinDec > 1) sinDec = 1;
+	    else if (sinDec < -1) sinDec = -1;
+
+	    m_declination = asin(sinDec);
+
+	    double cosLHA = (sin(alt) - sin(m_declination) * sin(latDet)) / (cos(m_declination) * cos(latDet));
+
+	    //making sure acos does not return NaN
+	    if(cosLHA > 1) cosLHA = 1;
+	    else if (cosLHA < -1) cosLHA = -1;
+
+	    double localHourAngle = acos(cosLHA);
+
+	    //expressing localHourAngle in degrees
+	    localHourAngle = radToDeg(localHourAngle);
+
+	    if (sin(azm) > 0) localHourAngle = 360.0 - localHourAngle;
+
+	    double localSiderealTime = LST(m_eventTime, lonDet);
+
+	    //calculating right ascension
+	    double rightAscension = localSiderealTime - localHourAngle;
+	    if (rightAscension < 0) rightAscension += 360.0;
+
+	    m_rightAscension = degToRad(rightAscension);
+	}
+
+	static bool IsEarlier(const BasicEvent& ev1, const BasicEvent& ev2)
+	{
+		if(ev1.m_eventTime.GetSec() < ev2.m_eventTime.GetSec()) return true;
+		else return false;
+	}
+};
+
+struct Event : public BasicEvent
+{
+	int m_seasonID, m_clusterID, m_runID, m_eventID, m_nHits, m_nHitsAfterCaus;
+	int m_nHitsAfterTFilter, m_nStringsAfterCaus, m_nStringsAfterTFilter, m_nTrackHits;
+	double m_mcEnergy, m_mcTheta, m_mcPhi;
+	double m_energySigma, m_thetaSigma, m_phiSigma, m_directionSigma;
+	double m_chi2AfterCaus, m_chi2AfterTFilter, m_cascTime, m_likelihood, m_likelihoodHitOnly;
+	double m_qTotal;
+	TVector3 m_position;
+	TVector3 m_mcPosition;
+	int m_coincidenceID = -1; //-1 if not in any coincidence
 
 	void LowTimeWarning()
 	{
@@ -119,12 +167,6 @@ struct Event
 			}
 		}
 		return isLEDMatrixRun;
-}
-
-	static bool IsEarlier(const Event& ev1, const Event& ev2)
-	{
-		if(ev1.m_eventTime.GetSec() < ev2.m_eventTime.GetSec()) return true;
-		else return false;
 	}
 };
 

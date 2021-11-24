@@ -8,6 +8,7 @@
 #include <fstream>
 #include <mutex>
 #include <thread>
+#include <algorithm>
 
 #include "TF1.h"
 #include "TFile.h"
@@ -51,7 +52,7 @@ double signalProbability(const Event& ev)
 
 double backgroundProbability(const Event& ev)
 {
-	double positionProb = sin(ev.m_theta)*costheta->Eval(cos(ev.m_theta));
+	double positionProb = max(0.0,abs(sin(ev.m_theta))*costheta->Eval(cos(ev.m_theta)));
 	double energyProb	= std::pow(ev.m_energy,-3.7)/eNormBack;
 
 	return positionProb*energyProb;
@@ -119,7 +120,7 @@ void fit(double& nSignal, double& nSignalSigma)
 {
 	PROFILE_FUNCTION();
 
-	gFitter->SetParameter(0,"nSignal",nSignal,0.1,-10000,sortedEvents.size());
+	gFitter->SetParameter(0,"nSignal",nSignal,0.1,0,sortedEvents.size());
 
 	double arglist[10] = {500,0.1}; //max iterations, step size
 	gFitter->ExecuteCommand("MIGRAD",arglist,2); //last one num of prints
