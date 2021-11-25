@@ -1,3 +1,4 @@
 #!/bin/bash
+cd $(dirname $0)
 
-g++ -O3 -std=c++2a -o PE.exe pseudo_exp.C `root-config --cflags --libs`
+g++ -O3 -o PE.exe pseudo_exp.C `root-config --cflags --libs`
