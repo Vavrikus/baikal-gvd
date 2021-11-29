@@ -9,7 +9,7 @@ while getopts "S:al" opt; do
         a)	array=("aries" "perseus" "orion" "lyra"
         	"dragon" "cassiopeia" "gidra" "hercules" "ursa" "val") ;;
         l)  echo "Localhost:"
-            ls -1 data/data* | wc -l ;;
+            ls -1 data/data* 2> /dev/null | wc -l ;;
     esac
 done
 
