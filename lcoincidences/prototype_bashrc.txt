@@ -11,3 +11,6 @@ fi
 # User specific aliases and functions
 
 source /opt/root-v6-22-08-release/bin/thisroot.sh
+
+#pseudo experiment script position
+export LCOIN_PE_SCRIPT=/home/martin/storage/lcoincidences/PE.exe
