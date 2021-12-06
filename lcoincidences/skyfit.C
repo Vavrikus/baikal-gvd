@@ -131,10 +131,17 @@ void fit(double& nSignal, double& nSignalSigma)
 int skyfit()
 {
 	TFile* pdf_input = TFile::Open("cos_theta.root","READ");
+	TFile* prob_input = TFile::Open("prob.root","READ");
 
 	TTree* filteredCascades;
 	pdf_input->GetObject("f_spline",costheta);
 	pdf_input->GetObject("filteredCascades",filteredCascades);
+
+	TF1* f_probfit;
+	prob_input->GetObject("f_probfit",f_probfit);
+
+	TF1* f_probfit2;
+	prob_input->GetObject("f_probfit2",f_probfit2);
 
 	costheta->SetNormalized(true);
 	cout << "costheta(-0.5): " << (*costheta)(-0.5) << endl; 
@@ -194,10 +201,11 @@ int skyfit()
 
 	SetFitter(1,false);
 
-	int bins = 25;
+	int bins = 180;
 
 	TH2F* h_nSignal  = new TH2F("h_nSignal","nSignal map",2*bins,-180,180,bins,-90,90);
 	TH2F* h_testStat = new TH2F("h_testStat","Test statistic map",2*bins,-180,180,bins,-90,90);
+	TH2F* h_prob     = new TH2F("h_prob","Probability map",2*bins,-180,180,bins,-90,90);
 
 	for (int i = 0; i < (2*bins); ++i)
 	{
@@ -210,8 +218,15 @@ int skyfit()
 
 			fit(nSignal,nSignalSigma);
 
+			double ts = testStatistic(nSignal);
+			double p;
+
+			if(ts > 25) p = f_probfit2->Eval(ts);//cout << "p: " << p << endl;}
+			else p = f_probfit->Eval(ts);
+
 			h_nSignal->SetBinContent(i,j,nSignal);
-			h_testStat->SetBinContent(i,j,testStatistic(nSignal));
+			h_testStat->SetBinContent(i,j,ts);
+			h_prob->SetBinContent(i,j,-log(p)/log(10));
 		}
 		cout << i << endl;
 	}
@@ -227,9 +242,14 @@ int skyfit()
 	TCanvas* c2 = new TCanvas("c_testStat","Test statistic map");
 	h_testStat->Draw("z aitoff");
 
+	TCanvas* c3 = new TCanvas("c_prob","Probability map");
+	// gPad->SetLogz();
+	h_prob->Draw("z aitoff");
+
 	TFile* outputFile = new TFile("skyfit.root","RECREATE");
 	c1->Write();
 	c2->Write();
+	c3->Write();
 
 	return 0;
 }
