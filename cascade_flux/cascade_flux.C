@@ -4,11 +4,13 @@
 #include "BJointHeader.h"
 #include "BRunInfo.h"
 
+#define DEBUG() cout << "Current Line: " << __LINE__ << endl;
+
 #define PROFILLING 0
+#define NEW_CASC_STRUCTURE
 #include "../EventLoop.h"
 #include "../Instrumentor.h"
 
-#define DEBUG() cout << "Current Line: " << __LINE__ << endl;
 
 using namespace std;
 
@@ -159,7 +161,7 @@ int cascade_flux(int data = 0, int year = -1, int cluster = -1)
 			break;
 	}
 
-	eloop->LoadReco2(data_path);
+	eloop->LoadReco(data_path);
 
 	string logs_path;
 	if(data == 0) logs_path = "/home/vavrik/work/Baikal-GVD/cascade_flux/logs/programOutput_";
@@ -168,7 +170,7 @@ int cascade_flux(int data = 0, int year = -1, int cluster = -1)
 	eloop->SetUpTTrees();
 
 	eloop->UseLEDfilter();
-	eloop->UseContainedFilter(40);
+	//eloop->UseContainedFilter(40);
 	if(DoLikelihoodCut) eloop->UseLikelihoodFilter(1.5);
 	eloop->UseEnergyFilter(energyCut);
 
@@ -217,7 +219,7 @@ int cascade_flux(int data = 0, int year = -1, int cluster = -1)
 	}
 
 	TCanvas* c2 = new TCanvas("c2", "", 1000, 500);
-	h_density->Draw("Lego2");
+	h_density->Draw("z aitoff");
 
 	TCanvas* c3 = new TCanvas("c3", "", 1000, 500);
 	h_density_stats->Draw();

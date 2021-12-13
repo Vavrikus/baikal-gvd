@@ -392,6 +392,41 @@ void CoincidenceFinder::RandomCoincidences(long int maxTimeDiff,double maxAngDis
 	random_coincidences->Draw("Lego2");
 }
 
+Event::Event(BRecoCascade* bcasc, BJointHeader* bhead)
+{
+	this->m_energy               = bcasc->GetEnergyRec();
+	this->m_theta                = bcasc->GetThetaRec();
+	this->m_phi                  = bcasc->GetPhiRec();
+	this->m_rightAscension       = bcasc->GetSourceRARec();
+	this->m_declination          = bcasc->GetSourceDecliRec();
+	this->m_eventTime            = bhead->GetTimeCC();
+	this->m_seasonID             = bhead->GetSeason();
+	this->m_clusterID            = bhead->GetCluster();
+	this->m_runID                = bhead->GetRun();
+	this->m_eventID              = bhead->GetEventIDCC();
+	this->m_nHits                = bcasc->GetNHits();
+	this->m_nHitsAfterCaus       = bcasc->GetNHitsCaus();
+	this->m_nHitsAfterTFilter    = bcasc->GetNHitsTFil();
+	this->m_nStringsAfterCaus    = bcasc->GetNStringsCaus();
+	this->m_nStringsAfterTFilter = bcasc->GetNStringsTFil();
+	this->m_nTrackHits           = 0;//bcasc->Get();
+	this->m_mcEnergy             = bcasc->GetEnergyMC();
+	this->m_mcTheta              = bcasc->GetThetaMC();
+	this->m_mcPhi                = bcasc->GetPhiMC();
+	this->m_energySigma          = 0;//bcasc->Get();
+	this->m_thetaSigma           = 0;//bcasc->Get();
+	this->m_phiSigma             = 0;//bcasc->Get();
+	this->m_directionSigma       = 0;//bcasc->Get();
+	this->m_chi2AfterCaus        = 0;//bcasc->Get();
+	this->m_chi2AfterTFilter     = 0;//bcasc->Get();
+	this->m_cascTime             = bcasc->GetFitTime();
+	this->m_likelihood           = bcasc->GetLikelihood();
+	this->m_likelihoodHitOnly    = bcasc->GetLikelihoodHitOnly();
+	this->m_qTotal               = bcasc->GetQTotal();
+	this->m_position             = bcasc->GetFitPos();
+	this->m_mcPosition           = bcasc->GetPosMC();
+}
+
 void EventLoop::PrintProgress(int done, int all)
 {
 	if(floor(10*done/all) != floor(10*(done-1)/all)) 
@@ -405,35 +440,151 @@ bool EventLoop::CheckFilters()
 	return true;
 }
 
-void EventLoop::LoadReco(const char* env_p)
-{
-	reconstructedCascades.SetName("Tree/t_RecCasc");
-
-	TString filesDir;
-
-	for (int j = startSeason; j < endSeason; j++)
+#ifndef NEW_CASC_STRUCTURE
+	void EventLoop::LoadReco(const char* env_p, bool v379 = false)
 	{
-		for (int i = startID; i < endID; ++i)
-		{
-			filesDir = Form("%s/exp20%d/cluster%d/",env_p,j,i);
-			cout << filesDir << endl;
+		reconstructedCascades.SetName("Tree/t_RecCasc");
 
-			auto dir = gSystem->OpenDirectory(filesDir.Data());
-			while (auto f = gSystem->GetDirEntry(dir))
+		TString filesDir;
+
+		for (int j = startSeason; j < endSeason; j++)
+		{
+			for (int i = startID; i < endID; ++i)
 			{
-			  	if (!strcmp(f,".") || !strcmp(f,"..")) continue;
-			  	TString fullFilePath = filesDir + f + "/recCascResults.root";
-			  	if (!gSystem->AccessPathName(fullFilePath))
-			  	{
-			  		// cout << f << endl;
-			  		reconstructedCascades.Add(TString(filesDir) + f + "/recCascResults.root");
-			  	}
+				filesDir = Form("%s/exp20%d/cluster%d/",env_p,j,i);
+				cout << filesDir << endl;
+
+				auto dir = gSystem->OpenDirectory(filesDir.Data());
+				while (auto f = gSystem->GetDirEntry(dir))
+				{
+				  	if (!strcmp(f,".") || !strcmp(f,"..")) continue;
+				  	TString fullFilePath = filesDir + f + "/recCascResults.root";
+				  	if (!gSystem->AccessPathName(fullFilePath))
+				  	{
+				  		// cout << f << endl;
+				  		reconstructedCascades.Add(TString(filesDir) + f + "/recCascResults.root");
+				  	}
+				}
+				
+				gSystem->FreeDirectory(dir);
 			}
-			
-			gSystem->FreeDirectory(dir);
 		}
 	}
-}
+
+	void EventLoop::SetUpTTrees()
+	{
+		filteredCascades = new TTree("filteredCascades","Filtered Cascades");
+
+		reconstructedCascades.SetBranchAddress("seasonID", 			   &current_ev.m_seasonID);
+		reconstructedCascades.SetBranchAddress("clusterID", 		   &current_ev.m_clusterID);
+		reconstructedCascades.SetBranchAddress("runID", 			   &current_ev.m_runID);
+		reconstructedCascades.SetBranchAddress("eventID", 			   &current_ev.m_eventID);
+		reconstructedCascades.SetBranchAddress("nHits", 			   &current_ev.m_nHits);
+		reconstructedCascades.SetBranchAddress("nHitsAfterCaus", 	   &current_ev.m_nHitsAfterCaus);
+		reconstructedCascades.SetBranchAddress("nStringsAfterCaus",    &current_ev.m_nStringsAfterCaus);
+		reconstructedCascades.SetBranchAddress("chi2AfterCaus", 	   &current_ev.m_chi2AfterCaus);
+		reconstructedCascades.SetBranchAddress("nHitsAfterTFilter",    &current_ev.m_nHitsAfterTFilter);
+		reconstructedCascades.SetBranchAddress("nStringsAfterTFilter", &current_ev.m_nStringsAfterTFilter);
+		reconstructedCascades.SetBranchAddress("chi2AfterTFilter", 	   &current_ev.m_chi2AfterTFilter);
+		reconstructedCascades.SetBranchAddress("energy", 			   &current_ev.m_energy);
+		reconstructedCascades.SetBranchAddress("energySigma", 		   &current_ev.m_energySigma);
+		reconstructedCascades.SetBranchAddress("theta",		 		   &current_ev.m_theta);
+		reconstructedCascades.SetBranchAddress("thetaSigma",		   &current_ev.m_thetaSigma);
+		reconstructedCascades.SetBranchAddress("phi", 				   &current_ev.m_phi);
+		reconstructedCascades.SetBranchAddress("phiSigma", 			   &current_ev.m_phiSigma);
+		reconstructedCascades.SetBranchAddress("directionSigma", 	   &current_ev.m_directionSigma);
+		reconstructedCascades.SetBranchAddress("declination",		   &current_ev.m_declination);
+		reconstructedCascades.SetBranchAddress("rightAscension",	   &current_ev.m_rightAscension);
+		reconstructedCascades.SetBranchAddress("position", 			   &position);
+		reconstructedCascades.SetBranchAddress("eventTime",			   &eventTime);
+		reconstructedCascades.SetBranchAddress("time", 				   &current_ev.m_cascTime);
+		reconstructedCascades.SetBranchAddress("mcEnergy", 			   &current_ev.m_mcEnergy);
+		reconstructedCascades.SetBranchAddress("mcTheta", 			   &current_ev.m_mcTheta);
+		reconstructedCascades.SetBranchAddress("mcPhi", 			   &current_ev.m_mcPhi);
+		reconstructedCascades.SetBranchAddress("mcPosition", 		   &mcPosition);
+		reconstructedCascades.SetBranchAddress("likelihood", 		   &current_ev.m_likelihood);
+		reconstructedCascades.SetBranchAddress("likelihoodHitOnly",    &current_ev.m_likelihoodHitOnly);
+		reconstructedCascades.SetBranchAddress("qTotal", 			   &current_ev.m_qTotal);
+		reconstructedCascades.SetBranchAddress("nTrackHits", 		   &current_ev.m_nTrackHits);
+
+		filteredCascades->Branch("seasonID", 				&current_ev.m_seasonID);
+		filteredCascades->Branch("clusterID", 				&current_ev.m_clusterID);
+		filteredCascades->Branch("runID", 					&current_ev.m_runID);
+		filteredCascades->Branch("eventID", 				&current_ev.m_eventID);
+		filteredCascades->Branch("nHits", 					&current_ev.m_nHits);
+		filteredCascades->Branch("nHitsAfterCaus", 			&current_ev.m_nHitsAfterCaus);
+		filteredCascades->Branch("nStringsAfterCaus", 		&current_ev.m_nStringsAfterCaus);
+		filteredCascades->Branch("chi2AfterCaus", 			&current_ev.m_chi2AfterCaus);
+		filteredCascades->Branch("nHitsAfterTFilter", 		&current_ev.m_nHitsAfterTFilter);
+		filteredCascades->Branch("nStringsAfterTFilter",	&current_ev.m_nStringsAfterTFilter);
+		filteredCascades->Branch("chi2AfterTFilter", 		&current_ev.m_chi2AfterTFilter);
+		filteredCascades->Branch("energy", 					&current_ev.m_energy);
+		filteredCascades->Branch("energySigma", 			&current_ev.m_energySigma);
+		filteredCascades->Branch("theta", 					&current_ev.m_theta);
+		filteredCascades->Branch("thetaSigma", 				&current_ev.m_thetaSigma);
+		filteredCascades->Branch("phi", 					&current_ev.m_phi);
+		filteredCascades->Branch("phiSigma", 				&current_ev.m_phiSigma);
+		filteredCascades->Branch("directionSigma", 			&current_ev.m_directionSigma);
+		filteredCascades->Branch("declination",				&current_ev.m_declination);
+		filteredCascades->Branch("rightAscension",			&current_ev.m_rightAscension);
+		filteredCascades->Branch("position", 				&current_ev.m_position);
+		filteredCascades->Branch("eventTime","TTimeStamp",	&current_ev.m_eventTime);
+		filteredCascades->Branch("time", 					&current_ev.m_cascTime);
+		filteredCascades->Branch("mcEnergy", 				&current_ev.m_mcEnergy);
+		filteredCascades->Branch("mcTheta", 				&current_ev.m_mcTheta);
+		filteredCascades->Branch("mcPhi", 					&current_ev.m_mcPhi);
+		filteredCascades->Branch("mcPosition", 				&current_ev.m_mcPosition);
+		filteredCascades->Branch("likelihood", 				&current_ev.m_likelihood);
+		filteredCascades->Branch("likelihoodHitOnly", 		&current_ev.m_likelihoodHitOnly);
+		filteredCascades->Branch("qTotal", 					&current_ev.m_qTotal);
+		filteredCascades->Branch("nTrackHits", 				&current_ev.m_nTrackHits);
+
+		int nRecCasc = reconstructedCascades.GetEntries();
+
+		cout << "\nnRecCasc: " << reconstructedCascades.GetEntries() << endl;
+
+		sortedEvents.reserve(nRecCasc);
+	}
+
+#else
+	void EventLoop::LoadReco(const char* env_p, bool v379 = false)
+	{
+		const char* versionFolder;
+		if(v379) versionFolder = "v1.3-379";
+		else     versionFolder = "v1.3-547";
+
+		reconstructedCascades.SetName("Events");
+
+		TString filesDir;
+
+		for (int j = startSeason; j < endSeason; j++)
+		{
+			for (int i = startID; i < endID; ++i)
+			{
+				TString filesDir = Form("%s/exp20%d/%s/cluster%d/*.reco.cascade.root",env_p,j,versionFolder,i);
+				cout << filesDir << "\n";
+				reconstructedCascades.Add(filesDir);
+			}
+		}
+	}
+
+	void EventLoop::SetUpTTrees()
+	{
+		filteredCascades = new TTree("filteredCascades","Filtered Cascades");
+
+		reconstructedCascades.SetBranchAddress("BRecoCascade.", &myCascade);
+		reconstructedCascades.SetBranchAddress("BJointHeader.", &myHeader);
+
+		filteredCascades->Branch("BRecoCascade.", &myCascade);
+		filteredCascades->Branch("BJointHeader.", &myHeader);
+
+		int nRecCasc = reconstructedCascades.GetEntries();
+
+		cout << "\nnRecCasc: " << reconstructedCascades.GetEntries() << endl;
+
+		sortedEvents.reserve(nRecCasc);
+	}
+#endif //NEW_CASC_STRUCTURE
 
 void EventLoop::LoadRunLogs(string dir)
 {
@@ -453,81 +604,6 @@ void EventLoop::LoadRunLogs(string dir)
 			RunInfo::parseRuns(runs,path);
 		}
 	}
-}
-
-void EventLoop::SetUpTTrees()
-{
-	filteredCascades = new TTree("filteredCascades","Filtered Cascades");
-
-	reconstructedCascades.SetBranchAddress("seasonID", 			   &current_ev.m_seasonID);
-	reconstructedCascades.SetBranchAddress("clusterID", 		   &current_ev.m_clusterID);
-	reconstructedCascades.SetBranchAddress("runID", 			   &current_ev.m_runID);
-	reconstructedCascades.SetBranchAddress("eventID", 			   &current_ev.m_eventID);
-	reconstructedCascades.SetBranchAddress("nHits", 			   &current_ev.m_nHits);
-	reconstructedCascades.SetBranchAddress("nHitsAfterCaus", 	   &current_ev.m_nHitsAfterCaus);
-	reconstructedCascades.SetBranchAddress("nStringsAfterCaus",    &current_ev.m_nStringsAfterCaus);
-	reconstructedCascades.SetBranchAddress("chi2AfterCaus", 	   &current_ev.m_chi2AfterCaus);
-	reconstructedCascades.SetBranchAddress("nHitsAfterTFilter",    &current_ev.m_nHitsAfterTFilter);
-	reconstructedCascades.SetBranchAddress("nStringsAfterTFilter", &current_ev.m_nStringsAfterTFilter);
-	reconstructedCascades.SetBranchAddress("chi2AfterTFilter", 	   &current_ev.m_chi2AfterTFilter);
-	reconstructedCascades.SetBranchAddress("energy", 			   &current_ev.m_energy);
-	reconstructedCascades.SetBranchAddress("energySigma", 		   &current_ev.m_energySigma);
-	reconstructedCascades.SetBranchAddress("theta",		 		   &current_ev.m_theta);
-	reconstructedCascades.SetBranchAddress("thetaSigma",		   &current_ev.m_thetaSigma);
-	reconstructedCascades.SetBranchAddress("phi", 				   &current_ev.m_phi);
-	reconstructedCascades.SetBranchAddress("phiSigma", 			   &current_ev.m_phiSigma);
-	reconstructedCascades.SetBranchAddress("directionSigma", 	   &current_ev.m_directionSigma);
-	reconstructedCascades.SetBranchAddress("declination",		   &current_ev.m_declination);
-	reconstructedCascades.SetBranchAddress("rightAscension",	   &current_ev.m_rightAscension);
-	reconstructedCascades.SetBranchAddress("position", 			   &position);
-	reconstructedCascades.SetBranchAddress("eventTime",			   &eventTime);
-	reconstructedCascades.SetBranchAddress("time", 				   &current_ev.m_cascTime);
-	reconstructedCascades.SetBranchAddress("mcEnergy", 			   &current_ev.m_mcEnergy);
-	reconstructedCascades.SetBranchAddress("mcTheta", 			   &current_ev.m_mcTheta);
-	reconstructedCascades.SetBranchAddress("mcPhi", 			   &current_ev.m_mcPhi);
-	reconstructedCascades.SetBranchAddress("mcPosition", 		   &mcPosition);
-	reconstructedCascades.SetBranchAddress("likelihood", 		   &current_ev.m_likelihood);
-	reconstructedCascades.SetBranchAddress("likelihoodHitOnly",    &current_ev.m_likelihoodHitOnly);
-	reconstructedCascades.SetBranchAddress("qTotal", 			   &current_ev.m_qTotal);
-	reconstructedCascades.SetBranchAddress("nTrackHits", 		   &current_ev.m_nTrackHits);
-
-	filteredCascades->Branch("seasonID", 				&current_ev.m_seasonID);
-	filteredCascades->Branch("clusterID", 				&current_ev.m_clusterID);
-	filteredCascades->Branch("runID", 					&current_ev.m_runID);
-	filteredCascades->Branch("eventID", 				&current_ev.m_eventID);
-	filteredCascades->Branch("nHits", 					&current_ev.m_nHits);
-	filteredCascades->Branch("nHitsAfterCaus", 			&current_ev.m_nHitsAfterCaus);
-	filteredCascades->Branch("nStringsAfterCaus", 		&current_ev.m_nStringsAfterCaus);
-	filteredCascades->Branch("chi2AfterCaus", 			&current_ev.m_chi2AfterCaus);
-	filteredCascades->Branch("nHitsAfterTFilter", 		&current_ev.m_nHitsAfterTFilter);
-	filteredCascades->Branch("nStringsAfterTFilter",	&current_ev.m_nStringsAfterTFilter);
-	filteredCascades->Branch("chi2AfterTFilter", 		&current_ev.m_chi2AfterTFilter);
-	filteredCascades->Branch("energy", 					&current_ev.m_energy);
-	filteredCascades->Branch("energySigma", 			&current_ev.m_energySigma);
-	filteredCascades->Branch("theta", 					&current_ev.m_theta);
-	filteredCascades->Branch("thetaSigma", 				&current_ev.m_thetaSigma);
-	filteredCascades->Branch("phi", 					&current_ev.m_phi);
-	filteredCascades->Branch("phiSigma", 				&current_ev.m_phiSigma);
-	filteredCascades->Branch("directionSigma", 			&current_ev.m_directionSigma);
-	filteredCascades->Branch("declination",				&current_ev.m_declination);
-	filteredCascades->Branch("rightAscension",			&current_ev.m_rightAscension);
-	filteredCascades->Branch("position", 				&current_ev.m_position);
-	filteredCascades->Branch("eventTime","TTimeStamp",	&current_ev.m_eventTime);
-	filteredCascades->Branch("time", 					&current_ev.m_cascTime);
-	filteredCascades->Branch("mcEnergy", 				&current_ev.m_mcEnergy);
-	filteredCascades->Branch("mcTheta", 				&current_ev.m_mcTheta);
-	filteredCascades->Branch("mcPhi", 					&current_ev.m_mcPhi);
-	filteredCascades->Branch("mcPosition", 				&current_ev.m_mcPosition);
-	filteredCascades->Branch("likelihood", 				&current_ev.m_likelihood);
-	filteredCascades->Branch("likelihoodHitOnly", 		&current_ev.m_likelihoodHitOnly);
-	filteredCascades->Branch("qTotal", 					&current_ev.m_qTotal);
-	filteredCascades->Branch("nTrackHits", 				&current_ev.m_nTrackHits);
-
-	int nRecCasc = reconstructedCascades.GetEntries();
-
-	cout << "\nnRecCasc: " << reconstructedCascades.GetEntries() << endl;
-
-	sortedEvents.reserve(nRecCasc);
 }
 
 void EventLoop::UseLEDfilter()
@@ -560,9 +636,13 @@ void EventLoop::RunLoop()
 	{
 		PrintProgress(i,reconstructedCascades.GetEntries());
 		reconstructedCascades.GetEntry(i);
+	#ifndef NEW_CASC_STRUCTURE
 		current_ev.m_position   = *position;
 		current_ev.m_mcPosition = *mcPosition;
 		current_ev.m_eventTime  = *eventTime;
+	#else
+		current_ev = Event(myCascade,myHeader);
+	#endif
 		if(!CheckFilters()) continue;
 
 		filteredCascades->Fill();
