@@ -19,14 +19,41 @@
 #define PROFILE_SCOPE(name) InstrumentationTimer timer##__LINE__(name)
 #define PROFILE_FUNCTION() PROFILE_SCOPE(__PRETTY_FUNCTION__)
 #define PROFILLING_START(name) Instrumentor::Get().BeginSession(name)
+#define PROFILLING_START_UNIQUE(name) Instrumentor::Get().BeginSession(name,GetAvailablePath())
 #define PROFILLING_END() Instrumentor::Get().EndSession()
+#define PTIMER_START(name,var) InstrumentationTimer* timer##var = new InstrumentationTimer(name)
+#define PTIMER_STOP(var) delete timer##var
 
 #include <string>
 #include <chrono>
 #include <algorithm>
 #include <fstream>
+#include <experimental/filesystem>
+#include <random>
 
 #include <thread>
+
+std::string GetAvailablePath()
+{
+    std::string nameBeg = "results";
+    std::string nameEnd = ".json";
+
+    int i = 0;
+    std::experimental::filesystem::path filePath;
+
+    do
+    {
+        std::mt19937_64 eng{std::random_device{}()};
+        std::uniform_int_distribution<> dist{10, 1000};
+        std::this_thread::sleep_for(std::chrono::milliseconds{dist(eng)});
+        filePath = std::experimental::filesystem::path(nameBeg+std::to_string(i)+nameEnd);
+        // cout << "trying " << filePath << "\n";
+        i++;
+    }
+    while(std::experimental::filesystem::exists(filePath));
+
+    return filePath;
+}
 
 struct ProfileResult
 {
@@ -54,7 +81,7 @@ public:
 
     void BeginSession(const std::string& name, const std::string& filepath = "results.json")
     {
-        cout << "Starting session!\n";
+        // cout << "Starting session!\n";
         m_OutputStream.open(filepath);
         WriteHeader();
         m_CurrentSession = new InstrumentationSession{ name };
@@ -62,7 +89,7 @@ public:
 
     void EndSession()
     {
-        cout << "Ending session!\n";
+        // cout << "Ending session!\n";
         WriteFooter();
         m_OutputStream.close();
         delete m_CurrentSession;
@@ -147,5 +174,8 @@ private:
     #define PROFILE_SCOPE(name)
     #define PROFILE_FUNCTION()
     #define PROFILLING_START(name)
+    #define PROFILLING_START_UNIQUE(name)
     #define PROFILLING_END()
+    #define PTIMER_START(name,var)
+    #define PTIMER_STOP(var)
 #endif //PROFILLING

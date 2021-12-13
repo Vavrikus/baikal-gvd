@@ -1,5 +1,9 @@
 #include "THStack.h"
 
+#include "BRecoCascade.h"
+#include "BJointHeader.h"
+#include "BRunInfo.h"
+
 #define PROFILLING 0
 #include "../EventLoop.h"
 #include "../Instrumentor.h"
@@ -8,7 +12,7 @@
 
 using namespace std;
 
-int cascade_flux(int val = 0, int year = -1, int cluster = -1)
+int cascade_flux(int data = 0, int year = -1, int cluster = -1)
 {
 #if PROFILLING
 	Instrumentor::Get().BeginSession("Session Name");
@@ -134,12 +138,32 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 	EventLoop* eloop = new EventLoop(year,cluster);
 
-	const char* data_path = val==1?"/home/vavrik/bajkal/recoCascades/v1.2":"/home/vavrik/work/data";//"/media/vavrik/Alpha/BaikalData/dataGidra_v1.3";//
-	eloop->LoadReco(data_path);
+	const char* data_path;
+
+	switch(data)
+	{
+		case 0:
+			data_path = "/home/vavrik/work/data";
+			break;
+		case 1:
+			data_path = "/home/vavrik/bajkal/recoCascades/v1.2";
+			break;
+		case 2:
+			data_path = "/media/vavrik/Alpha/BaikalData/dataGidra_v1.3";
+			break;
+		case 3:
+			data_path = "/media/vavrik/Alpha/BaikalData/dataAries_v1.3";
+			break;
+		case 4:
+			data_path = "/media/vavrik/Alpha/BaikalData/dataAries_v1.5";
+			break;
+	}
+
+	eloop->LoadReco2(data_path);
 
 	string logs_path;
-	if(val == 0) logs_path = "/home/vavrik/work/Baikal-GVD/cascade_flux/logs/programOutput_";
-	if(val == 1) logs_path = "/home/vavrik/storage/casc_flux/logs/programOutput_";
+	if(data == 0) logs_path = "/home/vavrik/work/Baikal-GVD/cascade_flux/logs/programOutput_";
+	if(data == 1) logs_path = "/home/vavrik/storage/casc_flux/logs/programOutput_";
 	eloop->LoadRunLogs(logs_path);
 	eloop->SetUpTTrees();
 
@@ -162,7 +186,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 	eloop->cfinder->FindTAEC(maxTimeDiff,10.0,20.0);
 	eloop->cfinder->WriteTAEC(maxTimeDiff,10.0,20.0);
 
-	eloop->cfinder->RandomCoincidences(maxTimeDiff);
+	// eloop->cfinder->RandomCoincidences(maxTimeDiff);
 
 	eloop->cfinder->WarnLEDMatrixRun();
 
@@ -209,7 +233,7 @@ int cascade_flux(int val = 0, int year = -1, int cluster = -1)
 
 int main(int argc, char** argv) 
 {
-	int val, year, cluster;
+	int data, year, cluster;
 
 	if(argc < 4) cluster = -1;
 	else cluster = stoi(argv[3]);
@@ -217,8 +241,8 @@ int main(int argc, char** argv)
 	if(argc < 3) year = -1;
 	else year = stoi(argv[2]);
 	
-	if(argc < 2) val = 0;
-	else val = stoi(argv[1]);
+	if(argc < 2) data = 0;
+	else data = stoi(argv[1]);
 
-	return cascade_flux(val,year,cluster);
+	return cascade_flux(data,year,cluster);
 }

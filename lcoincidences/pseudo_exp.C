@@ -182,7 +182,8 @@ void generate_background(int events)
 
 int pseudo_exp(double input_dec, int id, int nSimulations = 10000)
 {
-	PROFILLING_START("pseudo_exp");
+	PROFILLING_START_UNIQUE("pseudo_exp");
+	PTIMER_START("MAIN",MAIN);
 
 	gErrorIgnoreLevel = 6001; //no ROOT errors please
 
@@ -220,6 +221,7 @@ int pseudo_exp(double input_dec, int id, int nSimulations = 10000)
 
 		fit(nSignal,nSignalSigma);
 
+		PROFILE_SCOPE("Writing to files.");
 		outf  << nSignal << "\n";
 		outf2 << testStatistic(nSignal) << "\n";
 	}
@@ -229,6 +231,7 @@ int pseudo_exp(double input_dec, int id, int nSimulations = 10000)
 	delete gFitter;
 	// enhist->Draw();
 
+	PTIMER_STOP(MAIN);
 	PROFILLING_END();
 
 	return 0;
