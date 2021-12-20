@@ -61,49 +61,40 @@ std::function<double(double*,double*)> thetaDistEval = [](double* x, double* par
 TF1* bckg_thetaDist  = new TF1("thetaDist",thetaDistEval,0,TMath::Pi(),0);
 // TH1F* enhist = new TH1F("enhist","enhist",100,1,1000);
 
-double signalProbability(const BasicEvent& ev)
+static vector<double> sigprobs;
+static vector<double> bkgprobs;
+static int nSimulEvents;
+static double lastFitResult;
+
+void GetProbs()
 {
-	//folded gaussian distribution
-	double positionProb = TMath::Gaus(ev.angDist(sigRa,sigDec), 0, sigPosSigma)*2;
-	double energyProb	= std::pow(ev.m_energy,s_gamma)/eNormSig;
+	PROFILE_FUNCTION();
 
-	return positionProb*energyProb;
-}
+	for(const BasicEvent& ev : simulatedEvents)
+	{			
+		//folded gaussian distribution
+		double positionProb = TMath::Gaus(ev.angDist(sigRa,sigDec), 0, sigPosSigma)*2;
+		double energyProb	= std::pow(ev.m_energy,s_gamma)/eNormSig;
+		sigprobs.push_back(positionProb*energyProb);
 
-double backgroundProbability(const BasicEvent& ev)
-{
-	double positionProb = abs(sin(ev.m_theta)*costheta->Eval(cos(ev.m_theta)));
-	double energyProb	= std::pow(ev.m_energy,bckg_gamma)/eNormBack;
-
-	return positionProb*energyProb;
-}
-
-double probability(const BasicEvent& ev, double nSignal)
-{
-	return nSignal*signalProbability(ev) + simulatedEvents.size()*backgroundProbability(ev);
+		positionProb = abs(sin(ev.m_theta)*costheta->Eval(cos(ev.m_theta)));
+		energyProb	= std::pow(ev.m_energy,bckg_gamma)/eNormBack;
+		bkgprobs.push_back(positionProb*energyProb);
+	}
 }
 
 double testStatistic(double bestFit)
 {
 	PROFILE_FUNCTION();
 
-	double lBest = 0;
-
-	for(const BasicEvent& ev : simulatedEvents)
-	{
-		lBest += std::log(probability(ev,bestFit));
-	}
-
-	lBest -= bestFit;
-
 	double lNone = 0;
 
-	for(const BasicEvent& ev : simulatedEvents)
+	for(int i = 0; i < nSimulEvents; i++)
 	{
-		lNone += std::log(probability(ev,0));
+		lNone += std::log(simulatedEvents.size()*bkgprobs[i]);
 	}
 
-	return (lBest-lNone);
+	return (lastFitResult-lNone);
 }
 
 //logLikelihood with output parameter outL and input parameters array par
@@ -114,12 +105,13 @@ void logLikelihood(int& npar, double* gin, double& outL, double* par, int iflag)
 
 	outL = 0;
 
-	for(const BasicEvent& ev : simulatedEvents)
+	for(int i = 0; i < nSimulEvents; i++)
 	{
-		outL -= std::log(probability(ev,nSignal));
+		outL -= std::log(nSignal*sigprobs[i] + simulatedEvents.size()*bkgprobs[i]);
 	}
 
 	outL += nSignal;
+	lastFitResult = -outL;
 }
 
 void SetFitter(int parameters, bool print = true)
@@ -186,6 +178,7 @@ int pseudo_exp(double input_dec, int id, int nSimulations = 10000)
 	PTIMER_START("MAIN",MAIN);
 
 	gErrorIgnoreLevel = 6001; //no ROOT errors please
+	nSimulEvents = 3365;
 
 	sigDec = input_dec;
 
@@ -213,9 +206,13 @@ int pseudo_exp(double input_dec, int id, int nSimulations = 10000)
 	bckg_thetaDist->SetNormalized(true);
 	// bckg_thetaDist->Draw(); //for drawing costheta must not be deleted!!!
 
+	sigprobs.reserve(nSimulEvents);
+	bkgprobs.reserve(nSimulEvents);
+
 	for (int i = 0; i < nSimulations; ++i)
 	{
-		generate_background(3365);
+		generate_background(nSimulEvents);
+		GetProbs();
 
 		nSignal = 1;
 
@@ -224,6 +221,9 @@ int pseudo_exp(double input_dec, int id, int nSimulations = 10000)
 		PROFILE_SCOPE("Writing to files.");
 		outf  << nSignal << "\n";
 		outf2 << testStatistic(nSignal) << "\n";
+
+		sigprobs.clear();
+		bkgprobs.clear();
 	}
 
 	delete pdf_input;
