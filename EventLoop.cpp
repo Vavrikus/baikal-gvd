@@ -353,20 +353,24 @@ void CoincidenceFinder::WarnLEDMatrixRun(int minCoinSize, long int maxTimeDiff, 
 
 	FindCoincidences(&CoincidenceFinder::IsTRPC,0,maxTimeDiff,maxDist);
 
-	for(Coincidence* c : coincidences)
+	for(int season = 2016; season < 2022; season++)
 	{
-		for(int season = 2016; season < 2021; season++)
+		for(int cluster = 0; cluster < 10; cluster++)
 		{
-			for(int cluster = 0; cluster < 10; cluster++)
-			{
-				if(sortedEvents[c->m_indexes[0]].m_seasonID == season && sortedEvents[c->m_indexes[0]].m_clusterID == cluster && c->m_indexes.size() >= minCoinSize)
-				{
-					noLEDRunsDetected = false;
-					cout << "seasonID: "   << sortedEvents[c->m_indexes[0]].m_seasonID;
-					cout << " clusterID: " << sortedEvents[c->m_indexes[0]].m_clusterID;
-					cout << " runID: "     << sortedEvents[c->m_indexes[0]].m_runID << "\n";
-				}
+			vector<int> runs;
 
+			for(Coincidence* c : coincidences)
+			{
+				if(std::find(runs.begin(), runs.end(), sortedEvents[c->m_indexes[0]].m_runID) == runs.end()) {
+					if(sortedEvents[c->m_indexes[0]].m_seasonID == season && sortedEvents[c->m_indexes[0]].m_clusterID == cluster && c->m_indexes.size() >= minCoinSize)
+					{
+						noLEDRunsDetected = false;
+						cout << "seasonID: "   << sortedEvents[c->m_indexes[0]].m_seasonID;
+						cout << " clusterID: " << sortedEvents[c->m_indexes[0]].m_clusterID;
+						cout << " runID: "     << sortedEvents[c->m_indexes[0]].m_runID << "\n";
+						runs.push_back(sortedEvents[c->m_indexes[0]].m_runID);
+					}
+				}
 			}
 		}
 	}
@@ -392,6 +396,7 @@ void CoincidenceFinder::RandomCoincidences(long int maxTimeDiff,double maxAngDis
 	random_coincidences->Draw("Lego2");
 }
 
+#ifdef NEW_CASC_STRUCTURE
 Event::Event(BRecoCascade* bcasc, BJointHeader* bhead)
 {
 	this->m_energy               = bcasc->GetEnergyRec();
@@ -425,7 +430,9 @@ Event::Event(BRecoCascade* bcasc, BJointHeader* bhead)
 	this->m_qTotal               = bcasc->GetQTotal();
 	this->m_position             = bcasc->GetFitPos();
 	this->m_mcPosition           = bcasc->GetPosMC();
+	this->m_distanceCS			 = bcasc->GetDistanceCS();
 }
+#endif
 
 void EventLoop::PrintProgress(int done, int all)
 {
@@ -628,6 +635,12 @@ void EventLoop::UseEnergyFilter(double min)
 {
 	FilterFn EnergyFilter = [min](const Event& e){if(e.m_energy < min) return false; else return true;};
 	filters.push_back(EnergyFilter);
+}
+
+void EventLoop::UseUpGoingFilter()
+{
+	FilterFn UpGoingFilter = [](const Event& e){if(e.m_theta > 90) return false; else return true;};
+	filters.push_back(UpGoingFilter);
 }
 
 void EventLoop::RunLoop()

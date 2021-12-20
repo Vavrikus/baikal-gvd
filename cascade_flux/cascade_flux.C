@@ -45,9 +45,9 @@ int cascade_flux(int data = 0, int year = -1, int cluster = -1)
 	{
 		if(e.m_energy >= energyCut)
 		{
-			double ra = radToDeg(e.m_rightAscension);
+			double ra = e.m_rightAscension;
 			if(ra > 180) ra -= 360;
-			XY pos = toAitoff(ra,radToDeg(e.m_declination));
+			XY pos = toAitoff(ra,e.m_declination);
 			// cout << "ra: " << radToDeg(rightAscension) << " dec: " << radToDeg(declination) << endl;
 			// cout << "aitoff x: " << pos.x << " aitoff y: " << pos.y << endl;
 			aitoff->drawsingle->SetPoint(aitoff->drawsingle->GetN(),pos.x,pos.y);
@@ -84,10 +84,11 @@ int cascade_flux(int data = 0, int year = -1, int cluster = -1)
 			flux_hist->drawmap[hist_key]->GetXaxis()->SetTimeDisplay(1);
 			flux_hist->drawmap[hist_key]->GetXaxis()->SetTimeFormat("%m");//("%m/%Y");
 
-			int color = e.m_seasonID-2014+e.m_clusterID;
-			if(color > 9) color += 30;
+			// int color = e.m_seasonID-2014+e.m_clusterID;
+			// if(color > 9) color += 30;
 
-			flux_hist->drawmap[hist_key]->SetLineColor(color);	
+			// flux_hist->drawmap[hist_key]->SetLineColor(color);
+			flux_hist->drawmap[hist_key]->SetLineWidth(3);	
 		}
 
 		flux_hist->drawmap[hist_key]->Fill(e.m_eventTime.GetSec()-unix1995-GetStartTime(e.m_seasonID)+GetStartTime(2016)); //1970 unix to 1995 unix
@@ -128,11 +129,11 @@ int cascade_flux(int data = 0, int year = -1, int cluster = -1)
 		for(auto const& x : flux_stack)
 		{
 			flux_hist->canvasmap[x.first] = new TCanvas("c_cascFlux_" + x.first,"CascadeFlux",800,600);
-			x.second->Draw("nostack");
+			x.second->Draw("nostack PLC");
 
 			x.second->GetXaxis()->SetTimeDisplay(1);
 			x.second->GetXaxis()->SetTimeFormat("%m");
-			x.second->Draw("nostack");
+			x.second->Draw("nostack PLC");
 	  		gPad->BuildLegend(0.75,0.75,0.95,0.95,"");	
 		}
 	};
@@ -170,9 +171,10 @@ int cascade_flux(int data = 0, int year = -1, int cluster = -1)
 	eloop->SetUpTTrees();
 
 	eloop->UseLEDfilter();
-	//eloop->UseContainedFilter(40);
+	eloop->UseContainedFilter(40);
 	if(DoLikelihoodCut) eloop->UseLikelihoodFilter(1.5);
-	eloop->UseEnergyFilter(energyCut);
+	// eloop->UseEnergyFilter(energyCut);
+	eloop->UseUpGoingFilter();
 
 	eloop->AddDrawable(aitoff);
 	eloop->AddDrawable(flux_hist);
@@ -181,12 +183,12 @@ int cascade_flux(int data = 0, int year = -1, int cluster = -1)
 	eloop->DrawFluxGraphs();
 	eloop->SaveAll();
 
-	eloop->cfinder->FindTAEC(maxTimeDiff,360.0,20.0);
-	eloop->cfinder->WriteTAEC(maxTimeDiff,360.0,20.0);
-	eloop->cfinder->FindTAEC(maxTimeDiff,20.0,20.0);
-	eloop->cfinder->WriteTAEC(maxTimeDiff,20.0,20.0);
-	eloop->cfinder->FindTAEC(maxTimeDiff,10.0,20.0);
-	eloop->cfinder->WriteTAEC(maxTimeDiff,10.0,20.0);
+	// eloop->cfinder->FindTAEC(maxTimeDiff,360.0,20.0);
+	// eloop->cfinder->WriteTAEC(maxTimeDiff,360.0,20.0);
+	// eloop->cfinder->FindTAEC(maxTimeDiff,20.0,20.0);
+	// eloop->cfinder->WriteTAEC(maxTimeDiff,20.0,20.0);
+	// eloop->cfinder->FindTAEC(maxTimeDiff,10.0,20.0);
+	// eloop->cfinder->WriteTAEC(maxTimeDiff,10.0,20.0);
 
 	// eloop->cfinder->RandomCoincidences(maxTimeDiff);
 

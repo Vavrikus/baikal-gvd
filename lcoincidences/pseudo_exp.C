@@ -1,4 +1,4 @@
-#define PROFILLING 0
+#define PROFILLING 1
 #include "../EventLoop.h"
 // #include "../threading.h"
 #include "../transformations.h"
