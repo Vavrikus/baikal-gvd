@@ -1,6 +1,7 @@
 *.root
 results.json
 remote_stats2.sh
+.~lock.lc_workflow.odg#
 /results
 /data
 /archived

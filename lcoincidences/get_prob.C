@@ -66,11 +66,11 @@ public:
 
 int get_prob()
 {
-	TH1F* prob_hist  = new TH1F("prob_hist","Test statistic distribution;Test statistic;Probability TS is bigger",10000,-1,35);
-	TH1F* prob_hist2 = new TH1F("prob_hist2","nSignal distribution;nSignal;Probability nSign is bigger",10000,-1,35);
+	TH1F* prob_hist  = new TH1F("prob_hist","Test statistic distribution;Test statistic;Probability TS is bigger",10000,-1,22);
+	TH1F* prob_hist2 = new TH1F("prob_hist2","nSignal distribution;nSignal;Probability nSign is bigger",10000,-1,5);
 
-	ifstream  inf{"./data/merged/fdata_tStat_dec_0.000000_all.txt"};
-	ifstream inf2{"./data/merged/fdata_nSign_dec_0.000000_all.txt"};
+	ifstream  inf{"./data/merged/fdata_tStat_dec_-90.000000_all.txt"};
+	ifstream inf2{"./data/merged/fdata_nSign_dec_-90.000000_all.txt"};
 
 	if(!inf||!inf2) cout << "File not found.\n";
 

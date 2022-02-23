@@ -1,3 +1,4 @@
 *.root
+analyzeRecoCascadeOutput.C
 /results/
 /logs/
