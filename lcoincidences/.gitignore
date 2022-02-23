@@ -1,5 +1,6 @@
 *.root
 results.json
+remote_stats2.sh
 /results
 /data
 /archived
