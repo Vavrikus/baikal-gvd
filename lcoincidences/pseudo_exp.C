@@ -216,8 +216,6 @@ void RunSimulation(double ra_step, int id, int nSimulations)
 	}
 	else
 	{
-		sigRa = -180;
-
 		double nSignal;
 		double nSignalSigma;
 
@@ -234,7 +232,7 @@ void RunSimulation(double ra_step, int id, int nSimulations)
 		{
 			generate_background(nSimulEvents);
 
-			for (; sigRa < 180; sigRa += ra_step)
+			for (sigRa = -180; sigRa < 180; sigRa += ra_step)
 			{
 				string outpath  = "./data/data_nSign_dec_";
 				string outpath2 = "./data/data_tStat_dec_";
@@ -257,6 +255,9 @@ void RunSimulation(double ra_step, int id, int nSimulations)
 
 				sigprobs.clear();
 				bkgprobs.clear();
+
+				outf.close();
+				outf2.close();
 			}
 		}
 	}
