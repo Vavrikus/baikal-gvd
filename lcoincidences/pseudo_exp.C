@@ -172,7 +172,96 @@ void generate_background(int events)
 	}
 }
 
-int pseudo_exp(double input_dec, int id, int nSimulations = 10000)
+void RunSimulation(double ra_step, int id, int nSimulations)
+{
+	if (ra_step == 0)
+	{
+		string outpath  = "./data/data_nSign_dec_";
+		string outpath2 = "./data/data_tStat_dec_";
+
+		outpath  += to_string(sigDec) + "_" + id + ".txt";
+		outpath2 += to_string(sigDec) + "_" + id + ".txt";
+
+		std::ofstream outf{outpath, std::ios::app};
+		std::ofstream outf2{outpath2, std::ios::app};
+
+		double nSignal;
+		double nSignalSigma;
+
+		SetFitter(1,false);
+		gRandom = new TRandom3(0);
+		bckg_energyDist->SetParameter(0,bckg_gamma);
+		bckg_thetaDist->SetNormalized(true);
+		// bckg_thetaDist->Draw(); //for drawing costheta must not be deleted!!!
+
+		sigprobs.reserve(nSimulEvents);
+		bkgprobs.reserve(nSimulEvents);
+
+		for (int i = 0; i < nSimulations; ++i)
+		{
+			generate_background(nSimulEvents);
+			GetProbs();
+
+			nSignal = 1;
+
+			fit(nSignal,nSignalSigma);
+
+			PROFILE_SCOPE("Writing to files.");
+			outf  << nSignal << "\n";
+			outf2 << testStatistic(nSignal) << "\n";
+
+			sigprobs.clear();
+			bkgprobs.clear();
+		}
+	}
+	else
+	{
+		sigRa = -180;
+
+		for (; sigRa < 180; sigRa += ra_step)
+		{
+			string outpath  = "./data/data_nSign_dec_";
+			string outpath2 = "./data/data_tStat_dec_";
+
+			outpath  += to_string(sigDec) + "_" + to_string(sigRa) + "_" + id + ".txt";
+			outpath2 += to_string(sigDec) + "_" + to_string(sigRa) + "_" + id + ".txt";
+
+			std::ofstream outf{outpath, std::ios::app};
+			std::ofstream outf2{outpath2, std::ios::app};
+
+			double nSignal;
+			double nSignalSigma;
+
+			SetFitter(1,false);
+			gRandom = new TRandom3(0);
+			bckg_energyDist->SetParameter(0,bckg_gamma);
+			bckg_thetaDist->SetNormalized(true);
+			// bckg_thetaDist->Draw(); //for drawing costheta must not be deleted!!!
+
+			sigprobs.reserve(nSimulEvents);
+			bkgprobs.reserve(nSimulEvents);
+
+			for (int i = 0; i < nSimulations; ++i)
+			{
+				generate_background(nSimulEvents);
+				GetProbs();
+
+				nSignal = 1;
+
+				fit(nSignal,nSignalSigma);
+
+				PROFILE_SCOPE("Writing to files.");
+				outf  << nSignal << "\n";
+				outf2 << testStatistic(nSignal) << "\n";
+
+				sigprobs.clear();
+				bkgprobs.clear();
+			}
+		}
+	}
+}
+
+int pseudo_exp(double input_dec, int id, int iterate_ra = 0, int nSimulations = 10000)
 {
 	PROFILLING_START_UNIQUE("pseudo_exp");
 	PTIMER_START("MAIN",MAIN);
@@ -182,49 +271,14 @@ int pseudo_exp(double input_dec, int id, int nSimulations = 10000)
 
 	sigDec = input_dec;
 
-	string outpath  = "./data/data_nSign_dec_";
-	string outpath2 = "./data/data_tStat_dec_";
-
-	outpath  += to_string(input_dec) + "_" + id + ".txt";
-	outpath2 += to_string(input_dec) + "_" + id + ".txt";
-
-	std::ofstream outf{outpath, std::ios::app};
-	std::ofstream outf2{outpath2, std::ios::app};
-
 	TFile* pdf_input = TFile::Open("cos_theta.root","READ");
 
 	pdf_input->GetObject("f_spline",costheta);
 	// costheta->SetNormalized(true);
 	// cout << "costheta(-0.5): " << (*costheta)(-0.5) << endl;
 
-	double nSignal;
-	double nSignalSigma;
-
-	SetFitter(1,false);
-	gRandom = new TRandom3(0);
-	bckg_energyDist->SetParameter(0,bckg_gamma);
-	bckg_thetaDist->SetNormalized(true);
-	// bckg_thetaDist->Draw(); //for drawing costheta must not be deleted!!!
-
-	sigprobs.reserve(nSimulEvents);
-	bkgprobs.reserve(nSimulEvents);
-
-	for (int i = 0; i < nSimulations; ++i)
-	{
-		generate_background(nSimulEvents);
-		GetProbs();
-
-		nSignal = 1;
-
-		fit(nSignal,nSignalSigma);
-
-		PROFILE_SCOPE("Writing to files.");
-		outf  << nSignal << "\n";
-		outf2 << testStatistic(nSignal) << "\n";
-
-		sigprobs.clear();
-		bkgprobs.clear();
-	}
+	if (iterate_ra == 1) RunSimulation(10, id, nSimulations);
+	else RunSimulation(0, id, nSimulations);
 
 	delete pdf_input;
 	delete costheta;
@@ -249,5 +303,8 @@ int main(int argc, char** argv)
 		id 		  = stoi(argv[2]);
 	}
 
-	return pseudo_exp(input_dec,id);
+	int iterate_ra = 0;
+	if(argc > 3) iterate_ra = stoi(argv[3]);
+
+	return pseudo_exp(input_dec,id,iterate_ra);
 }
