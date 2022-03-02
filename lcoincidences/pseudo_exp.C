@@ -218,32 +218,33 @@ void RunSimulation(double ra_step, int id, int nSimulations)
 	{
 		sigRa = -180;
 
-		for (; sigRa < 180; sigRa += ra_step)
+		double nSignal;
+		double nSignalSigma;
+
+		SetFitter(1,false);
+		gRandom = new TRandom3(0);
+		bckg_energyDist->SetParameter(0,bckg_gamma);
+		bckg_thetaDist->SetNormalized(true);
+		// bckg_thetaDist->Draw(); //for drawing costheta must not be deleted!!!
+
+		sigprobs.reserve(nSimulEvents);
+		bkgprobs.reserve(nSimulEvents);
+
+		for (int i = 0; i < nSimulations; ++i)
 		{
-			string outpath  = "./data/data_nSign_dec_";
-			string outpath2 = "./data/data_tStat_dec_";
+			generate_background(nSimulEvents);
 
-			outpath  += to_string(sigDec) + "_" + to_string(sigRa) + "_" + id + ".txt";
-			outpath2 += to_string(sigDec) + "_" + to_string(sigRa) + "_" + id + ".txt";
-
-			std::ofstream outf{outpath, std::ios::app};
-			std::ofstream outf2{outpath2, std::ios::app};
-
-			double nSignal;
-			double nSignalSigma;
-
-			SetFitter(1,false);
-			gRandom = new TRandom3(0);
-			bckg_energyDist->SetParameter(0,bckg_gamma);
-			bckg_thetaDist->SetNormalized(true);
-			// bckg_thetaDist->Draw(); //for drawing costheta must not be deleted!!!
-
-			sigprobs.reserve(nSimulEvents);
-			bkgprobs.reserve(nSimulEvents);
-
-			for (int i = 0; i < nSimulations; ++i)
+			for (; sigRa < 180; sigRa += ra_step)
 			{
-				generate_background(nSimulEvents);
+				string outpath  = "./data/data_nSign_dec_";
+				string outpath2 = "./data/data_tStat_dec_";
+
+				outpath  += to_string(sigDec) + "_" + to_string(sigRa) + "_" + id + ".txt";
+				outpath2 += to_string(sigDec) + "_" + to_string(sigRa) + "_" + id + ".txt";
+
+				std::ofstream outf{outpath, std::ios::app};
+				std::ofstream outf2{outpath2, std::ios::app};
+
 				GetProbs();
 
 				nSignal = 1;
