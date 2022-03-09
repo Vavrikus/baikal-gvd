@@ -98,6 +98,7 @@ void ReadAndFill1D(double dec, double ra, TH1F* prob_hist, TH1F* prob_hist2)
 		{
 	        std::cerr << "Argument is invalid\n";
 	        cerr << input << endl;
+	        cerr << "File: " << inpath << endl;
 	        throw;
     	}
 	}
@@ -116,6 +117,7 @@ void ReadAndFill1D(double dec, double ra, TH1F* prob_hist, TH1F* prob_hist2)
 		{
 	        std::cerr << "Argument is invalid\n";
 	        cerr << input << endl;
+	        cerr << "File: " << inpath2 << endl;
 	        throw;
     	}
 	}
@@ -145,9 +147,9 @@ int get_prob()
 	THStack* hs2 = new THStack("hs2","nSignal distribution");
 	for(double sigRa = -180; sigRa < 180; sigRa += 10)
 	{
-		TH1F* prob_hist  = new TH1F("prob_hist","Test statistic distribution;Test statistic;Probability TS is bigger",10000,-1,22);
-		TH1F* prob_hist2 = new TH1F("prob_hist2","nSignal distribution;nSignal;Probability nSign is bigger",10000,-1,5);
-		ReadAndFill1D(45,sigRa,prob_hist,prob_hist2);
+		TH1F* prob_hist  = new TH1F("prob_hist","Test statistic distribution;Test statistic;Probability TS is bigger",10000,-1,20);
+		TH1F* prob_hist2 = new TH1F("prob_hist2","nSignal distribution;nSignal;Probability nSign is bigger",10000,-1,10);
+		ReadAndFill1D(-45,sigRa,prob_hist,prob_hist2);
 
 		TH1* prob_hist_cumul = prob_hist->GetCumulative(kFALSE);
 		prob_hist_cumul->Scale(1./prob_hist->GetEntries());

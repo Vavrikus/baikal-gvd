@@ -1,5 +1,6 @@
 *.root
 results.json
+badline-45,70.txt
 remote_stats2.sh
 .~lock.lc_workflow.odg#
 /results
