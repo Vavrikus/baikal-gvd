@@ -145,11 +145,11 @@ int get_prob()
 {
 	THStack* hs  = new THStack("hs", "Test statistic distribution");
 	THStack* hs2 = new THStack("hs2","nSignal distribution");
-	for(double sigRa = -180; sigRa < 180; sigRa += 10)
+	for(double sigDec = -90; sigDec <= 90; sigDec += 5)
 	{
-		TH1F* prob_hist  = new TH1F("prob_hist","Test statistic distribution;Test statistic;Probability TS is bigger",10000,-1,20);
-		TH1F* prob_hist2 = new TH1F("prob_hist2","nSignal distribution;nSignal;Probability nSign is bigger",10000,-1,10);
-		ReadAndFill1D(-45,sigRa,prob_hist,prob_hist2);
+		TH1F* prob_hist  = new TH1F("prob_hist","Test statistic distribution;Test statistic;Probability TS is bigger",10000,-1,100);
+		TH1F* prob_hist2 = new TH1F("prob_hist2","nSignal distribution;nSignal;Probability nSign is bigger",10000,-1,100);
+		ReadAndFill1D(sigDec,-1000,prob_hist,prob_hist2);
 
 		TH1* prob_hist_cumul = prob_hist->GetCumulative(kFALSE);
 		prob_hist_cumul->Scale(1./prob_hist->GetEntries());
@@ -163,11 +163,11 @@ int get_prob()
 	TCanvas* c1 = new TCanvas("c1","TS distribution");
 	gStyle->SetOptStat(111111);
 	gPad->SetLogy();
-	hs->Draw("nostack");
+	hs->Draw("nostack plc");
 
 	TCanvas* c2 = new TCanvas("c2","nS distribution");
 	gPad->SetLogy();
-	hs2->Draw("nostack");
+	hs2->Draw("nostack plc");
 	
 	// TH1F* prob_hist  = new TH1F("prob_hist","Test statistic distribution;Test statistic;Probability TS is bigger",10000,-1,22);
 	// TH1F* prob_hist2 = new TH1F("prob_hist2","nSignal distribution;nSignal;Probability nSign is bigger",10000,-1,5);
