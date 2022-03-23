@@ -5,6 +5,9 @@
 
 using namespace std;
 
+string data_folder = "/media/vavrik/Elements/Baikal-GVD/lcoincidences/fit_results/test_03_dec_5degstep_full/"; //"./data/merged/";
+int line_err;
+
 template<int N>
 class NSpline 
 {
@@ -70,35 +73,45 @@ void ReadAndFill1D(double dec, double ra, TH1F* prob_hist, TH1F* prob_hist2)
 
 	if(ra == -1000)
 	{
-		inpath  = "./data/merged/fdata_tStat_dec_" + to_string(dec) + "_all.txt";
-		inpath2 = "./data/merged/fdata_nSign_dec_" + to_string(dec) + "_all.txt";
+		inpath  = data_folder + "fdata_tStat_dec_" + to_string(dec) + "_all.txt";
+		inpath2 = data_folder + "fdata_nSign_dec_" + to_string(dec) + "_all.txt";
 	}
 	else
 	{
-		inpath  = "./data/merged/fdata_tStat_dec_" + to_string(dec) + "_" + to_string(ra) + "_all.txt";
-		inpath2 = "./data/merged/fdata_nSign_dec_" + to_string(dec) + "_" + to_string(ra) + "_all.txt";		
+		inpath  = data_folder + "fdata_tStat_dec_" + to_string(dec) + "_" + to_string(ra) + "_all.txt";
+		inpath2 = data_folder + "fdata_nSign_dec_" + to_string(dec) + "_" + to_string(ra) + "_all.txt";		
 	}
 
 	ifstream  inf{inpath};
 	ifstream inf2{inpath2};
 
 	if(!inf||!inf2) cout << "File not found.\n";
+	line_err = 0;
 
 	while(inf)
 	{
 		string input;
 		getline(inf,input);
+		line_err++;
 
 		try 
 		{
-			if(input != "") prob_hist->Fill(stod(input));
+			if(input != "")
+			{
+				prob_hist->Fill(stod(input));
+				if(stod(input) > 100)
+				{
+					cout << "VERY LARGE TSTAT INPUT: " << input << endl;
+					cout << "File: " << inpath << " Line: " << line_err << endl;
+				}
+			}
     	} 
    
 		catch (const std::invalid_argument&) 
 		{
 	        std::cerr << "Argument is invalid\n";
 	        cerr << input << endl;
-	        cerr << "File: " << inpath << endl;
+	        cerr << "File: " << inpath << " Line: " << line_err << endl;
 	        throw;
     	}
 	}
@@ -110,14 +123,22 @@ void ReadAndFill1D(double dec, double ra, TH1F* prob_hist, TH1F* prob_hist2)
 
 		try 
 		{
-			if(input != "") prob_hist2->Fill(stod(input));
+			if(input != "")
+			{
+				prob_hist2->Fill(stod(input));
+				if(stod(input) > 100)
+				{
+					cout << "VERY LARGE NSIGN INPUT: " << input << endl;
+					cout << "File: " << inpath2 << " Line: " << line_err << endl;
+				}
+			}
     	} 
    
 		catch (const std::invalid_argument&) 
 		{
 	        std::cerr << "Argument is invalid\n";
 	        cerr << input << endl;
-	        cerr << "File: " << inpath2 << endl;
+	        cerr << "File: " << inpath2 << " Line: " << line_err << endl;
 	        throw;
     	}
 	}
