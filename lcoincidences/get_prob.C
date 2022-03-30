@@ -6,7 +6,7 @@
 using namespace std;
 
 string data_folder = "/media/vavrik/Elements/Baikal-GVD/lcoincidences/fit_results/test_03_dec_5degstep_full/"; //"./data/merged/";
-int line_err;
+double prob_bound = 0.95;
 
 template<int N>
 class NSpline 
@@ -70,6 +70,7 @@ public:
 void ReadAndFill1D(double dec, double ra, TH1F* prob_hist, TH1F* prob_hist2)
 {
 	string inpath, inpath2;
+	std::vector<double> tStat;
 
 	if(ra == -1000)
 	{
@@ -86,7 +87,7 @@ void ReadAndFill1D(double dec, double ra, TH1F* prob_hist, TH1F* prob_hist2)
 	ifstream inf2{inpath2};
 
 	if(!inf||!inf2) cout << "File not found.\n";
-	line_err = 0;
+	int line_err = 0;
 
 	while(inf)
 	{
@@ -99,11 +100,12 @@ void ReadAndFill1D(double dec, double ra, TH1F* prob_hist, TH1F* prob_hist2)
 			if(input != "")
 			{
 				prob_hist->Fill(stod(input));
-				if(stod(input) > 100)
-				{
-					cout << "VERY LARGE TSTAT INPUT: " << input << endl;
-					cout << "File: " << inpath << " Line: " << line_err << endl;
-				}
+				tStat.push_back(stod(input));
+				// if(stod(input) > 100)
+				// {
+				// 	cout << "VERY LARGE TSTAT INPUT: " << input << endl;
+				// 	cout << "File: " << inpath << " Line: " << line_err << endl;
+				// }
 			}
     	} 
    
@@ -116,21 +118,31 @@ void ReadAndFill1D(double dec, double ra, TH1F* prob_hist, TH1F* prob_hist2)
     	}
 	}
 
+	sort(tStat.begin(),tStat.end());
+	int low_index = floor(prob_bound*tStat.size());
+	int high_index = ceil(prob_bound*tStat.size());
+	double shift = (prob_bound*tStat.size()-low_index)/(high_index-low_index);
+	if (low_index == high_index) shift = 0;
+	double TS_bound = tStat[low_index]+shift*(tStat[high_index]-tStat[low_index]);
+	cout << TS_bound << "," << std::flush;
+
+	line_err = 0;
 	while(inf2)
 	{
 		string input;
 		getline(inf2,input);
+		line_err++;
 
 		try 
 		{
 			if(input != "")
 			{
 				prob_hist2->Fill(stod(input));
-				if(stod(input) > 100)
-				{
-					cout << "VERY LARGE NSIGN INPUT: " << input << endl;
-					cout << "File: " << inpath2 << " Line: " << line_err << endl;
-				}
+				// if(stod(input) > 100)
+				// {
+				// 	cout << "VERY LARGE NSIGN INPUT: " << input << endl;
+				// 	cout << "File: " << inpath2 << " Line: " << line_err << endl;
+				// }
 			}
     	} 
    
@@ -164,8 +176,12 @@ void Draw1D(TH1F* prob_hist, TH1F* prob_hist2)
 
 int get_prob()
 {
+	gErrorIgnoreLevel = 6001; //no ROOT errors please
+
 	THStack* hs  = new THStack("hs", "Test statistic distribution");
 	THStack* hs2 = new THStack("hs2","nSignal distribution");
+
+	cout << "{" << std::flush;
 	for(double sigDec = -90; sigDec <= 90; sigDec += 5)
 	{
 		TH1F* prob_hist  = new TH1F("prob_hist","Test statistic distribution;Test statistic;Probability TS is bigger",10000,-1,100);
@@ -180,6 +196,7 @@ int get_prob()
 		hs->Add(prob_hist_cumul);
 		hs2->Add(prob_hist2_cumul);
 	}
+	cout << "}" << std::endl;
 
 	TCanvas* c1 = new TCanvas("c1","TS distribution");
 	gStyle->SetOptStat(111111);
