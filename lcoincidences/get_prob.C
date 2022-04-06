@@ -173,6 +173,7 @@ void ReadAndFill1D(double dec, double ra, TH1F* prob_hist, TH1F* prob_hist2)
 
 int get_prob()
 {
+	TFile* outputFile = new TFile("prob.root","RECREATE");
 	THStack* hs  = new THStack("hs", "Test statistic distribution");
 	THStack* hs2 = new THStack("hs2","nSignal distribution");
 
@@ -201,9 +202,12 @@ int get_prob()
 		int i = (sigDec+90)/5;
 		gStyle->SetOptStat(111111);
 
+		int min_bin  = prob_hist_cumul->GetMinimumBin();
+		double min_x = -1+0.0101*min_bin; //1e-8 probability when using larger set
+
 		const int nodes = 50;
 		const double low = -1;
-		const double high = fit_bounds[i]+20;
+		const double high = min_x;
 		double spline_nodes[nodes];
 
 		for (int i = 0; i < nodes; ++i)
@@ -219,9 +223,6 @@ int get_prob()
 		f_splines.push_back(new TF1(fname1.c_str(), s->GetEval(), low, high, 2*nodes+2));
 		f_exps.push_back(new TF1(fname2.c_str(), "[0]*exp(-[1]*x)",-1,100));
 
-		int min_bin  = prob_hist_cumul->GetMinimumBin();
-		double min_x = -1+0.0101*min_bin; //1e-8 probability when using larger set
-
 		double tangent = (log(1e-6)-log(1e-5))/(min_x-fit_bounds[i]);
 		double par0 = exp(log(1e-5)-tangent*fit_bounds[i]);
 		double par1 = -tangent;
@@ -230,14 +231,21 @@ int get_prob()
 		f_exps[i]->SetParameter(0,par0);
 		f_exps[i]->SetParameter(1,par1);
 
-		//prob_hist_cumul->Fit(f_splines[i],"M","",low,high);
 		prob_hist_cumul->Fit(f_exps[i],"M","",fit_bounds[i],100);
 
-		TCanvas* c = new TCanvas();
+		string cname1 = "c_spline_"  + to_string(i);
+		string cname2 = "c_exp_" + to_string(i);
+		TCanvas* c = new TCanvas(cname2.c_str(),cname2.c_str());
 		gPad->SetLogy();
 		prob_hist_cumul->Draw();
-		//f_exps[i]->Draw();
-		//f_splines[i]->Draw();
+		c->Write();
+
+		prob_hist_cumul->Fit(f_splines[i],"M","",low,high);
+
+		TCanvas* c2 = new TCanvas(cname1.c_str(),cname1.c_str());
+		gPad->SetLogy();
+		prob_hist_cumul->Draw();
+		c2->Write();
 
 		hs->Add(prob_hist_cumul);
 		hs2->Add(prob_hist2_cumul);
@@ -256,11 +264,16 @@ int get_prob()
 	gPad->SetLogy();
 	hs2->Draw("nostack plc");
 
-	// TFile* outputFile = new TFile("prob.root","RECREATE");
-	// prob_hist_cumul->Write();
-	// prob_hist2_cumul->Write();
-	// f_spline->Write();
-	// f_exp->Write();
+	hs->Write();
+	hs2->Write();
+	outputFile->WriteObject(&f_exps,"f_exps");
+	outputFile->WriteObject(&f_splines,"f_splines");
+	outputFile->Close();
+
+	// TFile *fin = TFile::Open("prob.root", "READ");
+ //   	std::vector<TF1*> *yy;
+ //   	fin->GetObject("f_exps", yy);
+ //   	(*yy)[0]->Draw();
 
 	return 0;
 }
