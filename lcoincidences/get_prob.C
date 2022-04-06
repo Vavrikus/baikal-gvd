@@ -5,8 +5,14 @@
 
 using namespace std;
 
-string data_folder = "/media/vavrik/Elements/Baikal-GVD/lcoincidences/fit_results/test_03_dec_5degstep_full/"; //"./data/merged/";
-double prob_bound = 0.95;
+string data_folder = "./data/merged/";//"/media/vavrik/Elements/Baikal-GVD/lcoincidences/fit_results/test_03_dec_5degstep_full/"; //
+double prob_bound = 1-1e-5;
+#define FIND_TS_FOR_PROB_BOUND 0
+
+//1e-5 probability bounds
+const vector<double> fit_bounds = {10.9983,10.888,10.6235,10.4007,10.3206,10.3551,10.3797,10.5331,10.6906,10.8716,11.1583,11.6488,12.2753,13.1082,14.1282,15.2548,16.4592,17.9392,19.7688,22.1002,24.8501,28.3045,31.8804,35.5551,39.5829,44.0158,49.259,54.5009,58.8381,61.8463,63.9316,65.1841,66.6971,68.6378,70.9946,72.7542,73.3589};
+vector<TF1*> f_splines;
+vector<TF1*> f_exps;
 
 template<int N>
 class NSpline 
@@ -70,7 +76,10 @@ public:
 void ReadAndFill1D(double dec, double ra, TH1F* prob_hist, TH1F* prob_hist2)
 {
 	string inpath, inpath2;
+
+#if FIND_TS_FOR_PROB_BOUND
 	std::vector<double> tStat;
+#endif
 
 	if(ra == -1000)
 	{
@@ -100,7 +109,11 @@ void ReadAndFill1D(double dec, double ra, TH1F* prob_hist, TH1F* prob_hist2)
 			if(input != "")
 			{
 				prob_hist->Fill(stod(input));
+
+			#if FIND_TS_FOR_PROB_BOUND
 				tStat.push_back(stod(input));
+			#endif
+
 				// if(stod(input) > 100)
 				// {
 				// 	cout << "VERY LARGE TSTAT INPUT: " << input << endl;
@@ -118,6 +131,7 @@ void ReadAndFill1D(double dec, double ra, TH1F* prob_hist, TH1F* prob_hist2)
     	}
 	}
 
+#if FIND_TS_FOR_PROB_BOUND
 	sort(tStat.begin(),tStat.end());
 	int low_index = floor(prob_bound*tStat.size());
 	int high_index = ceil(prob_bound*tStat.size());
@@ -125,6 +139,7 @@ void ReadAndFill1D(double dec, double ra, TH1F* prob_hist, TH1F* prob_hist2)
 	if (low_index == high_index) shift = 0;
 	double TS_bound = tStat[low_index]+shift*(tStat[high_index]-tStat[low_index]);
 	cout << TS_bound << "," << std::flush;
+#endif
 
 	line_err = 0;
 	while(inf2)
@@ -156,96 +171,90 @@ void ReadAndFill1D(double dec, double ra, TH1F* prob_hist, TH1F* prob_hist2)
 	}
 }
 
-void Draw1D(TH1F* prob_hist, TH1F* prob_hist2)
-{
-	TCanvas* c1 = new TCanvas("c1","TS distribution");
-
-	gStyle->SetOptStat(111111);
-
-	gPad->SetLogy();
-	TH1* prob_hist_cumul = prob_hist->GetCumulative(kFALSE);
-	prob_hist_cumul->Scale(1./prob_hist->GetEntries());
-	prob_hist_cumul->Draw();
-
-	TCanvas* c2 = new TCanvas("c2","nS distribution");
-	gPad->SetLogy();
-	TH1* prob_hist2_cumul = prob_hist2->GetCumulative(kFALSE);
-	prob_hist2_cumul->Scale(1./prob_hist2->GetEntries());
-	prob_hist2_cumul->Draw();
-}
-
 int get_prob()
 {
-	gErrorIgnoreLevel = 6001; //no ROOT errors please
-
 	THStack* hs  = new THStack("hs", "Test statistic distribution");
 	THStack* hs2 = new THStack("hs2","nSignal distribution");
 
+#if FIND_TS_FOR_PROB_BOUND
+	gErrorIgnoreLevel = 6001; //no ROOT errors please
 	cout << "{" << std::flush;
+#endif
+
 	for(double sigDec = -90; sigDec <= 90; sigDec += 5)
 	{
-		TH1F* prob_hist  = new TH1F("prob_hist","Test statistic distribution;Test statistic;Probability TS is bigger",10000,-1,100);
-		TH1F* prob_hist2 = new TH1F("prob_hist2","nSignal distribution;nSignal;Probability nSign is bigger",10000,-1,100);
+		cout << "Current declination: " << sigDec << endl;
+
+		string name1 = "prob_hist_"  + to_string(sigDec);
+		string name2 = "prob_hist2_" + to_string(sigDec);
+
+		TH1F* prob_hist  = new TH1F(name1.c_str(),"Test statistic distribution;Test statistic;Probability TS is bigger",10000,-1,100);
+		TH1F* prob_hist2 = new TH1F(name2.c_str(),"nSignal distribution;nSignal;Probability nSign is bigger",10000,-1,100);
 		ReadAndFill1D(sigDec,-1000,prob_hist,prob_hist2);
 
 		TH1* prob_hist_cumul = prob_hist->GetCumulative(kFALSE);
-		prob_hist_cumul->Scale(1./prob_hist->GetEntries());
+		prob_hist_cumul->Scale(1./prob_hist->GetEntries(),"nosw2");
 		TH1* prob_hist2_cumul = prob_hist2->GetCumulative(kFALSE);
 		prob_hist2_cumul->Scale(1./prob_hist2->GetEntries());
+
+		//FIT PART
+		int i = (sigDec+90)/5;
+		gStyle->SetOptStat(111111);
+
+		const int nodes = 50;
+		const double low = -1;
+		const double high = fit_bounds[i]+20;
+		double spline_nodes[nodes];
+
+		for (int i = 0; i < nodes; ++i)
+		{
+			spline_nodes[i] = low+(high-low)*i/nodes;
+		}
+
+		NSpline<nodes>* s = new NSpline<nodes>(spline_nodes);
+		s->SetDer1(0);
+		s->SetDer2(0);
+		string fname1 = "f_probfit_"  + to_string(i);
+		string fname2 = "f_probfit2_" + to_string(i);
+		f_splines.push_back(new TF1(fname1.c_str(), s->GetEval(), low, high, 2*nodes+2));
+		f_exps.push_back(new TF1(fname2.c_str(), "[0]*exp(-[1]*x)",-1,100));
+
+		int min_bin  = prob_hist_cumul->GetMinimumBin();
+		double min_x = -1+0.0101*min_bin; //1e-8 probability when using larger set
+
+		double tangent = (log(1e-6)-log(1e-5))/(min_x-fit_bounds[i]);
+		double par0 = exp(log(1e-5)-tangent*fit_bounds[i]);
+		double par1 = -tangent;
+
+		//cout << "Parameter 0: " << par0 << ", parameter 1: " << par1 << endl;
+		f_exps[i]->SetParameter(0,par0);
+		f_exps[i]->SetParameter(1,par1);
+
+		//prob_hist_cumul->Fit(f_splines[i],"M","",low,high);
+		prob_hist_cumul->Fit(f_exps[i],"M","",fit_bounds[i],100);
+
+		TCanvas* c = new TCanvas();
+		gPad->SetLogy();
+		prob_hist_cumul->Draw();
+		//f_exps[i]->Draw();
+		//f_splines[i]->Draw();
 
 		hs->Add(prob_hist_cumul);
 		hs2->Add(prob_hist2_cumul);
 	}
-	cout << "}" << std::endl;
 
-	TCanvas* c1 = new TCanvas("c1","TS distribution");
+#if FIND_TS_FOR_PROB_BOUND
+	cout << "}" << std::endl;
+#endif
+
+	TCanvas* c1 = new TCanvas("a1","TS distribution");
 	gStyle->SetOptStat(111111);
 	gPad->SetLogy();
 	hs->Draw("nostack plc");
 
-	TCanvas* c2 = new TCanvas("c2","nS distribution");
+	TCanvas* c2 = new TCanvas("a2","nS distribution");
 	gPad->SetLogy();
 	hs2->Draw("nostack plc");
-	
-	// TH1F* prob_hist  = new TH1F("prob_hist","Test statistic distribution;Test statistic;Probability TS is bigger",10000,-1,22);
-	// TH1F* prob_hist2 = new TH1F("prob_hist2","nSignal distribution;nSignal;Probability nSign is bigger",10000,-1,5);
-	// ReadAndFill1D(-90,-1000,prob_hist,prob_hist2);
-	// Draw1D(prob_hist,prob_hist2);
-
-	// const int nodes = 50;
-	// const double low = -1;
-	// const double high = 33;
-	// double spline_nodes[nodes];
-
-	// for (int i = 0; i < nodes; ++i)
-	// {
-	// 	spline_nodes[i] = low+(high-low)*i/nodes;
-	// }
-
-	// NSpline<nodes>* s= new NSpline<nodes>(spline_nodes);
-	// s->SetDer1(0);
-	// s->SetDer2(0);
-	// TF1* f_spline = new TF1("f_probfit", s->GetEval(), low, high, 2*nodes+2);
-	// TF1* f_exp    = new TF1("f_probfit2", "[0]*exp(-[1]*x)",-1,50);
-	// f_exp->SetParameters(1,1);
-
-	// TCanvas* c1 = new TCanvas("c1","TS distribution");
-
-	// gStyle->SetOptStat(111111);
-
-	// gPad->SetLogy();
-	// TH1* prob_hist_cumul = prob_hist->GetCumulative(kFALSE);
-	// prob_hist_cumul->Scale(1./prob_hist->GetEntries());
-	// prob_hist_cumul->Fit(f_spline,"M","",low,high);
-	// prob_hist_cumul->Fit(f_exp,"M","",15,35);
-	// prob_hist_cumul->Draw();
-
-	// TCanvas* c2 = new TCanvas("c2","nS distribution");
-	// gPad->SetLogy();
-	// TH1* prob_hist2_cumul = prob_hist2->GetCumulative(kFALSE);
-	// prob_hist2_cumul->Scale(1./prob_hist2->GetEntries());
-	// prob_hist2_cumul->Draw();
-
 
 	// TFile* outputFile = new TFile("prob.root","RECREATE");
 	// prob_hist_cumul->Write();
