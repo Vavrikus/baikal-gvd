@@ -16,6 +16,9 @@
 #include "TTree.h"
 #include "TVirtualFitter.h"
 
+//1e-5 probability bounds
+const vector<double> fit_bounds = {10.9983,10.888,10.6235,10.4007,10.3206,10.3551,10.3797,10.5331,10.6906,10.8716,11.1583,11.6488,12.2753,13.1082,14.1282,15.2548,16.4592,17.9392,19.7688,22.1002,24.8501,28.3045,31.8804,35.5551,39.5829,44.0158,49.259,54.5009,58.8381,61.8463,63.9316,65.1841,66.6971,68.6378,70.9946,72.7542,73.3589};
+
 static std::vector<Event> sortedEvents;
 static TVirtualFitter* gFitter;
 
@@ -137,11 +140,11 @@ int skyfit()
 	pdf_input->GetObject("f_spline",costheta);
 	pdf_input->GetObject("filteredCascades",filteredCascades);
 
-	TF1* f_probfit;
-	prob_input->GetObject("f_probfit",f_probfit);
+	vector<TF1*>* f_splines;
+	prob_input->GetObject("f_splines",f_splines);
 
-	TF1* f_probfit2;
-	prob_input->GetObject("f_probfit2",f_probfit2);
+	vector<TF1*>* f_exps;
+	prob_input->GetObject("f_exps",f_exps);
 
 	costheta->SetNormalized(true);
 	cout << "costheta(-0.5): " << (*costheta)(-0.5) << endl; 
@@ -221,8 +224,24 @@ int skyfit()
 			double ts = testStatistic(nSignal);
 			double p;
 
-			if(ts > 25) p = f_probfit2->Eval(ts);//cout << "p: " << p << endl;}
-			else p = f_probfit->Eval(ts);
+			double dec   = (sigDec+90.0)/5.0;
+			int low_dec  = floor(dec);
+			int high_dec = ceil(dec);
+
+			if(low_dec == high_dec)
+			{
+				if(ts <= fit_bounds[high_dec]) p = (*f_splines)[high_dec]->Eval(ts);
+				else p = (*f_exps)[high_dec]->Eval(ts);
+			}
+			else
+			{
+				if(ts <= fit_bounds[high_dec])
+					 p = (*f_splines)[low_dec]->Eval(ts)+dec*((*f_splines)[high_dec]->Eval(ts)-(*f_splines)[low_dec]->Eval(ts));
+				else p = (*f_exps)[low_dec]->Eval(ts)+dec*((*f_exps)[high_dec]->Eval(ts)-(*f_exps)[low_dec]->Eval(ts));
+			}
+
+			// if(ts > 25) p = f_probfit2->Eval(ts);//cout << "p: " << p << endl;}
+			// else p = f_probfit->Eval(ts);
 
 			h_nSignal->SetBinContent(i,j,nSignal);
 			h_testStat->SetBinContent(i,j,ts);
