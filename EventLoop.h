@@ -136,6 +136,41 @@ struct BasicEvent
 	    m_rightAscension = degToRad(rightAscension);
 	}
 
+	//transform from equatorial to horizontal coordinates
+	void computeThetaPhi(const double& latDet = latB, const double& lonDet = lonB)
+	{		
+	    //converting right ascension and declination to radians
+	    double rAsc = m_rightAscension;
+	    double dec  = m_declination;
+
+	    double localSiderealTime = LST(m_eventTime, lonDet);
+	    double LHA = degToRad(localSiderealTime) - rAsc; //local hour angle
+
+	    if (LHA < 0) LHA += 2 * PI;
+
+	    //transform using equations from http://star-www.st-and.ac.uk/~fv/webnotes/chapter7.htm
+	    double sinAlt = sin(dec) * sin(latDet) + cos(dec) * cos(latDet) * cos(LHA);
+
+	    //making sure asin does not return NaN
+	    if(sinAlt > 1) sinAlt = 1;
+	    else if (sinAlt < -1) sinAlt = -1;
+
+	    double altitude = asin(sinAlt);
+
+	    double cosAz = (sin(dec) - sin(latDet) * sin(altitude)) / (cos(latDet) * cos(altitude));
+
+	    //making sure acos does not return NaN
+	    if(cosAz > 1) cosAz = 1;
+	    else if (cosAz < -1) cosAz = -1;
+
+	    double azimuth  = acos(cosAz);
+
+	    if (sin(LHA) > 0) azimuth = 2 * PI - azimuth;
+
+	    m_theta = altitude + TMath::Pi()/2;
+	    m_phi   = 3*TMath::Pi()/2 - azimuth;
+	}
+
 	static bool IsEarlier(const BasicEvent& ev1, const BasicEvent& ev2)
 	{
 		if(ev1.m_eventTime.GetSec() < ev2.m_eventTime.GetSec()) return true;

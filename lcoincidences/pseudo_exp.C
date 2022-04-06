@@ -32,7 +32,7 @@ static double minEnergy    = 1;
 static double maxEnergy	   = 10000000;
 
 //energy coefficients
-const static double s_gamma = -2;
+const static double sig_gamma = -2;
 const static double bckg_gamma = -3.7;
 
 time_t tStart = GetStartTime(2019)+unix1995;
@@ -46,10 +46,11 @@ double powerLawArea(double power, double xmin, double xmax)
 }
 
 //energy distribution normalization parameter
-static double eNormSig     = powerLawArea(s_gamma,minEnergy,maxEnergy);
+static double eNormSig     = powerLawArea(sig_gamma,minEnergy,maxEnergy);
 static double eNormBack    = powerLawArea(bckg_gamma,minEnergy,maxEnergy);
 
 TF1* bckg_energyDist = new TF1("energyDist", "std::pow(x,[0])",minEnergy,maxEnergy);
+TF1* sig_energyDist  = new TF1("energyDist", "std::pow(x,[0])",minEnergy,maxEnergy);
 
 std::function<double(double*,double*)> thetaDistEval = [](double* x, double* par)
 {
@@ -74,7 +75,7 @@ void GetProbs()
 	{			
 		//folded gaussian distribution
 		double positionProb = TMath::Gaus(ev.angDist(sigRa,sigDec), 0, sigPosSigma)*2;
-		double energyProb	= std::pow(ev.m_energy,s_gamma)/eNormSig;
+		double energyProb	= std::pow(ev.m_energy,sig_gamma)/eNormSig;
 		sigprobs.push_back(positionProb*energyProb);
 
 		positionProb = abs(sin(ev.m_theta)*costheta->Eval(cos(ev.m_theta)));
@@ -172,7 +173,39 @@ void generate_background(int events)
 	}
 }
 
-void RunSimulation(double input_dec, double end_dec, double step_dec, double ra_step, int id, int nSimulations)
+void generate_signal(int events)
+{
+	PROFILE_FUNCTION();
+	for (int i = 0; i < events; ++i)
+	{
+		BasicEvent sig_ev;
+		
+		sig_ev.m_energy = sig_energyDist->GetRandom();
+
+		//converting right ascension and declination to radians
+		double raRad  = degToRad(sigRa);
+		double decRad = degToRad(sigDec);
+
+		//angular distance and angle in radians
+		double dev 	  = abs(gRandom->Gaus(0,degToRad(sigPosSigma))); //only works for small enough sigma (dev<PI)
+		double angle  = 2*PI*gRandom->Rndm();
+
+		//transformation using horToEq with zero local sidereal time
+		eqCoor coorOut = shiftSpherTrans(radToDeg(dev),radToDeg(angle),raRad,decRad);
+		sig_ev.m_rightAscension = coorOut.rAsc;
+		sig_ev.m_declination    = coorOut.dec;
+
+		sig_ev.m_eventTime = TTimeStamp((tEnd-tStart)*gRandom->Rndm()+tStart,0);
+
+		sig_ev.computeThetaPhi();
+
+		simulatedEvents.push_back(sig_ev);
+
+
+	}
+}
+
+void RunSimulation(int signal_events, double input_dec, double end_dec, double step_dec, double ra_step, int id, int nSimulations)
 {
 	double nSignal;
 	double nSignalSigma;
@@ -180,11 +213,12 @@ void RunSimulation(double input_dec, double end_dec, double step_dec, double ra_
 	SetFitter(1,false);
 	gRandom = new TRandom3(0);
 	bckg_energyDist->SetParameter(0,bckg_gamma);
+	sig_energyDist->SetParameter(0,sig_gamma);
 	bckg_thetaDist->SetNormalized(true);
 	// bckg_thetaDist->Draw(); //for drawing costheta must not be deleted!!!
 
-	sigprobs.reserve(nSimulEvents);
-	bkgprobs.reserve(nSimulEvents);
+	sigprobs.reserve(nSimulEvents+signal_events);
+	bkgprobs.reserve(nSimulEvents+signal_events);
 
 	if (step_dec == 0)
 	{
@@ -205,6 +239,7 @@ void RunSimulation(double input_dec, double end_dec, double step_dec, double ra_
 			for (int i = 0; i < nSimulations; ++i)
 			{
 				generate_background(nSimulEvents);
+				generate_signal(signal_events);
 				GetProbs();
 
 				nSignal = 1;
@@ -224,6 +259,7 @@ void RunSimulation(double input_dec, double end_dec, double step_dec, double ra_
 			for (int i = 0; i < nSimulations; ++i)
 			{
 				generate_background(nSimulEvents);
+				generate_signal(signal_events);
 
 				for (sigRa = -180; sigRa < 180; sigRa += ra_step)
 				{
@@ -261,6 +297,7 @@ void RunSimulation(double input_dec, double end_dec, double step_dec, double ra_
 		for (int i = 0; i < nSimulations; ++i)
 		{
 			generate_background(nSimulEvents);
+				generate_signal(signal_events);
 
 			for (sigDec = input_dec; sigDec <= end_dec; sigDec += step_dec)
 			{
@@ -293,7 +330,7 @@ void RunSimulation(double input_dec, double end_dec, double step_dec, double ra_
 	}
 }
 
-int pseudo_exp(double input_dec, int id, double end_dec = 0, double step_dec = 0, int iterate_ra = 0, int nSimulations = 10000)
+int pseudo_exp(int signal_events, double input_dec, int id, double end_dec = 0, double step_dec = 0, int iterate_ra = 0, int nSimulations = 10000)
 {
 	PROFILLING_START_UNIQUE("pseudo_exp");
 	PTIMER_START("MAIN",MAIN);
@@ -307,8 +344,8 @@ int pseudo_exp(double input_dec, int id, double end_dec = 0, double step_dec = 0
 	// costheta->SetNormalized(true);
 	// cout << "costheta(-0.5): " << (*costheta)(-0.5) << endl;
 
-	if (iterate_ra == 1) RunSimulation(input_dec, 0, 0, 10, id, nSimulations);
-	else RunSimulation(input_dec, end_dec, step_dec, 0, id, nSimulations);
+	if (iterate_ra == 1) RunSimulation(signal_events, input_dec, 0, 0, 10, id, nSimulations);
+	else RunSimulation(signal_events, input_dec, end_dec, step_dec, 0, id, nSimulations);
 
 	delete pdf_input;
 	delete costheta;
@@ -324,23 +361,24 @@ int pseudo_exp(double input_dec, int id, double end_dec = 0, double step_dec = 0
 int main(int argc, char** argv)
 {
 	double input_dec;
-	int id;
+	int id, signal_events;
 
 	if(argc < 3) cerr << "Not enough arguments!\n";
 	else
 	{
-		input_dec = stod(argv[1]);
-		id 		  = stoi(argv[2]);
+		signal_events = stoi(argv[1]);
+		input_dec     = stod(argv[2]);
+		id 		      = stoi(argv[3]);
 	}
 
 	double end_dec = 90;
-	if(argc > 3) end_dec = stod(argv[3]);
+	if(argc > 3) end_dec = stod(argv[4]);
 
 	double step_dec = 0;
-	if(argc > 4) step_dec = stod(argv[4]);
+	if(argc > 4) step_dec = stod(argv[5]);
 
 	int iterate_ra = 0;
-	if(argc > 5) iterate_ra = stoi(argv[5]);
+	if(argc > 5) iterate_ra = stoi(argv[6]);
 
-	return pseudo_exp(input_dec,id,end_dec,step_dec,iterate_ra);
+	return pseudo_exp(signal_events,input_dec,id,end_dec,step_dec,iterate_ra);
 }
