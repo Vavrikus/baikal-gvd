@@ -236,13 +236,13 @@ int skyfit()
 			else
 			{
 				if(ts <= fit_bounds[high_dec])
-					 p = (*f_splines)[low_dec]->Eval(ts)+dec*((*f_splines)[high_dec]->Eval(ts)-(*f_splines)[low_dec]->Eval(ts));
-				else p = (*f_exps)[low_dec]->Eval(ts)+dec*((*f_exps)[high_dec]->Eval(ts)-(*f_exps)[low_dec]->Eval(ts));
+					 p = (*f_splines)[low_dec]->Eval(ts)+(dec-low_dec)*((*f_splines)[high_dec]->Eval(ts)-(*f_splines)[low_dec]->Eval(ts));
+				else p = (*f_exps)[low_dec]->Eval(ts)+(dec-low_dec)*((*f_exps)[high_dec]->Eval(ts)-(*f_exps)[low_dec]->Eval(ts));
 			}
 
 			// if(ts > 25) p = f_probfit2->Eval(ts);//cout << "p: " << p << endl;}
 			// else p = f_probfit->Eval(ts);
-
+			//cout << "p: " << p << ", ts: " << ts << ", dec: " << dec-low_dec << endl;
 			h_nSignal->SetBinContent(i,j,nSignal);
 			h_testStat->SetBinContent(i,j,ts);
 			h_prob->SetBinContent(i,j,-log(p)/log(10));
