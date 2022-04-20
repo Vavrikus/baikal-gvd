@@ -240,6 +240,32 @@ void FitAndOutput(int signal_events, double& nSignal, double& nSignalSigma, ofst
 	bkgprobs.clear();
 }
 
+void GetOutputFiles(int signal_events, int id, bool iterate_ra, ofstream& outf, ofstream& outf2)
+{
+	if(iterate_ra = 1)
+	{
+		string outpath  = "./data/data_nSign_dec_";
+		string outpath2 = "./data/data_tStat_dec_";
+
+		outpath  += to_string(sigDec) + "_" + to_string(sigRa) + "_" + id + ".txt";
+		outpath2 += to_string(sigDec) + "_" + to_string(sigRa) + "_" + id + ".txt";
+
+		outf  = std::ofstream(outpath, std::ios::app);
+		outf2 = std::ofstream(outpath2, std::ios::app);
+	}
+	else
+	{
+		string outpath  = "./data/data_nSign_dec_";
+		string outpath2 = "./data/data_tStat_dec_";
+
+		outpath  += to_string(sigDec) + "_" + id + ".txt";
+		outpath2 += to_string(sigDec) + "_" + id + ".txt";
+
+		outf  = std::ofstream(outpath, std::ios::app);
+		outf2 = std::ofstream(outpath2, std::ios::app);
+	}
+}
+
 void RunSimulation(int signal_events, double input_dec, double end_dec, double step_dec, double ra_step, int id, int nSimulations)
 {
 	double nSignal;
@@ -255,21 +281,15 @@ void RunSimulation(int signal_events, double input_dec, double end_dec, double s
 	sigprobs.reserve(nSimulEvents+signal_events);
 	bkgprobs.reserve(nSimulEvents+signal_events);
 
-	if (step_dec == 0)
+	if (step_dec == 0) //dont iterate dec
 	{
-		cout << "IF" << endl;
+		cout << "NOT ITERATING DECLINATION." << endl;
 		sigDec = input_dec;
 
 		if (ra_step == 0) //dont iterate ra or dec
 		{
-			string outpath  = "./data/data_nSign_dec_";
-			string outpath2 = "./data/data_tStat_dec_";
-
-			outpath  += to_string(sigDec) + "_" + id + ".txt";
-			outpath2 += to_string(sigDec) + "_" + id + ".txt";
-
-			std::ofstream outf{outpath, std::ios::app};
-			std::ofstream outf2{outpath2, std::ios::app};
+			std::ofstream outf,outf2;
+			GetOutputFiles(signal_events,id,0,outf,outf2);
 
 			for (int i = 0; i < nSimulations; ++i)
 			{
@@ -285,14 +305,8 @@ void RunSimulation(int signal_events, double input_dec, double end_dec, double s
 
 				for (sigRa = -180; sigRa < 180; sigRa += ra_step)
 				{
-					string outpath  = "./data/data_nSign_dec_";
-					string outpath2 = "./data/data_tStat_dec_";
-
-					outpath  += to_string(sigDec) + "_" + to_string(sigRa) + "_" + id + ".txt";
-					outpath2 += to_string(sigDec) + "_" + to_string(sigRa) + "_" + id + ".txt";
-
-					std::ofstream outf{outpath, std::ios::app};
-					std::ofstream outf2{outpath2, std::ios::app};
+					std::ofstream outf,outf2;
+					GetOutputFiles(signal_events,id,1,outf,outf2);
 
 					FitAndOutput(signal_events, nSignal, nSignalSigma, outf, outf2);
 
@@ -311,14 +325,8 @@ void RunSimulation(int signal_events, double input_dec, double end_dec, double s
 
 			for (sigDec = input_dec; sigDec <= end_dec; sigDec += step_dec)
 			{
-				string outpath  = "./data/data_nSign_dec_";
-				string outpath2 = "./data/data_tStat_dec_";
-
-				outpath  += to_string(sigDec) + "_" + id + ".txt";
-				outpath2 += to_string(sigDec) + "_" + id + ".txt";
-
-				std::ofstream outf{outpath, std::ios::app};
-				std::ofstream outf2{outpath2, std::ios::app};
+				std::ofstream outf,outf2;
+				GetOutputFiles(signal_events,id,0,outf,outf2);
 
 				FitAndOutput(signal_events, nSignal, nSignalSigma, outf, outf2);	
 
