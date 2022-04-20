@@ -84,6 +84,22 @@ void GetProbs()
 	}
 }
 
+void GetLastProb()
+{
+	PROFILE_FUNCTION();
+
+	const BasicEvent& ev = simulatedEvents.back();
+
+	//folded gaussian distribution
+	double positionProb = TMath::Gaus(ev.angDist(sigRa,sigDec), 0, sigPosSigma)*2;
+	double energyProb	= std::pow(ev.m_energy,sig_gamma)/eNormSig;
+	sigprobs.push_back(positionProb*energyProb);
+
+	positionProb = abs(sin(ev.m_theta)*costheta->Eval(cos(ev.m_theta)));
+	energyProb	= std::pow(ev.m_energy,bckg_gamma)/eNormBack;
+	bkgprobs.push_back(positionProb*energyProb);
+}
+
 double testStatistic(double bestFit)
 {
 	PROFILE_FUNCTION();
@@ -173,36 +189,55 @@ void generate_background(int events)
 	}
 }
 
-void generate_signal(int events)
+void generate_signal()
 {
 	PROFILE_FUNCTION();
-	for (int i = 0; i < events; ++i)
+
+	BasicEvent sig_ev;
+	
+	sig_ev.m_energy = sig_energyDist->GetRandom();
+
+	//converting right ascension and declination to radians
+	double raRad  = degToRad(sigRa);
+	double decRad = degToRad(sigDec);
+
+	//angular distance and angle in radians
+	double dev 	  = abs(gRandom->Gaus(0,degToRad(sigPosSigma))); //only works for small enough sigma (dev<PI)
+	double angle  = 2*PI*gRandom->Rndm();
+
+	//transformation using horToEq with zero local sidereal time
+	eqCoor coorOut = shiftSpherTrans(radToDeg(dev),radToDeg(angle),raRad,decRad);
+	sig_ev.m_rightAscension = coorOut.rAsc;
+	sig_ev.m_declination    = coorOut.dec;
+
+	sig_ev.m_eventTime = TTimeStamp((tEnd-tStart)*gRandom->Rndm()+tStart,0);
+
+	sig_ev.computeThetaPhi();
+
+	simulatedEvents.push_back(sig_ev);
+}
+
+void FitAndOutput(int signal_events, double& nSignal, double& nSignalSigma, ofstream& outf, ofstream& outf2)
+{
+	GetProbs();
+
+	for(int sig = 0; sig <= signal_events; sig++)
 	{
-		BasicEvent sig_ev;
-		
-		sig_ev.m_energy = sig_energyDist->GetRandom();
+		if(sig != 0) {generate_signal(); GetLastProb();}
 
-		//converting right ascension and declination to radians
-		double raRad  = degToRad(sigRa);
-		double decRad = degToRad(sigDec);
+		nSignal = 1;
 
-		//angular distance and angle in radians
-		double dev 	  = abs(gRandom->Gaus(0,degToRad(sigPosSigma))); //only works for small enough sigma (dev<PI)
-		double angle  = 2*PI*gRandom->Rndm();
+		fit(nSignal,nSignalSigma);
 
-		//transformation using horToEq with zero local sidereal time
-		eqCoor coorOut = shiftSpherTrans(radToDeg(dev),radToDeg(angle),raRad,decRad);
-		sig_ev.m_rightAscension = coorOut.rAsc;
-		sig_ev.m_declination    = coorOut.dec;
-
-		sig_ev.m_eventTime = TTimeStamp((tEnd-tStart)*gRandom->Rndm()+tStart,0);
-
-		sig_ev.computeThetaPhi();
-
-		simulatedEvents.push_back(sig_ev);
-
-
+		PROFILE_SCOPE("Writing to files.");
+		outf  << nSignal << "\n";
+		outf2 << testStatistic(nSignal) << "\n";					
 	}
+
+	simulatedEvents.resize(simulatedEvents.size() - signal_events);
+
+	sigprobs.clear();
+	bkgprobs.clear();
 }
 
 void RunSimulation(int signal_events, double input_dec, double end_dec, double step_dec, double ra_step, int id, int nSimulations)
@@ -225,7 +260,7 @@ void RunSimulation(int signal_events, double input_dec, double end_dec, double s
 		cout << "IF" << endl;
 		sigDec = input_dec;
 
-		if (ra_step == 0)
+		if (ra_step == 0) //dont iterate ra or dec
 		{
 			string outpath  = "./data/data_nSign_dec_";
 			string outpath2 = "./data/data_tStat_dec_";
@@ -239,27 +274,14 @@ void RunSimulation(int signal_events, double input_dec, double end_dec, double s
 			for (int i = 0; i < nSimulations; ++i)
 			{
 				generate_background(nSimulEvents);
-				generate_signal(signal_events);
-				GetProbs();
-
-				nSignal = 1;
-
-				fit(nSignal,nSignalSigma);
-
-				PROFILE_SCOPE("Writing to files.");
-				outf  << nSignal << "\n";
-				outf2 << testStatistic(nSignal) << "\n";
-
-				sigprobs.clear();
-				bkgprobs.clear();
+				FitAndOutput(signal_events, nSignal, nSignalSigma, outf, outf2);
 			}
 		}
-		else
+		else //iterate ra but not dec
 		{
 			for (int i = 0; i < nSimulations; ++i)
 			{
 				generate_background(nSimulEvents);
-				generate_signal(signal_events);
 
 				for (sigRa = -180; sigRa < 180; sigRa += ra_step)
 				{
@@ -272,18 +294,7 @@ void RunSimulation(int signal_events, double input_dec, double end_dec, double s
 					std::ofstream outf{outpath, std::ios::app};
 					std::ofstream outf2{outpath2, std::ios::app};
 
-					GetProbs();
-
-					nSignal = 1;
-
-					fit(nSignal,nSignalSigma);
-
-					PROFILE_SCOPE("Writing to files.");
-					outf  << nSignal << "\n";
-					outf2 << testStatistic(nSignal) << "\n";
-
-					sigprobs.clear();
-					bkgprobs.clear();
+					FitAndOutput(signal_events, nSignal, nSignalSigma, outf, outf2);
 
 					outf.close();
 					outf2.close();
@@ -292,12 +303,11 @@ void RunSimulation(int signal_events, double input_dec, double end_dec, double s
 		}
 	}
 
-	else
+	else //iterate dec but not ra
 	{
 		for (int i = 0; i < nSimulations; ++i)
 		{
 			generate_background(nSimulEvents);
-				generate_signal(signal_events);
 
 			for (sigDec = input_dec; sigDec <= end_dec; sigDec += step_dec)
 			{
@@ -310,21 +320,10 @@ void RunSimulation(int signal_events, double input_dec, double end_dec, double s
 				std::ofstream outf{outpath, std::ios::app};
 				std::ofstream outf2{outpath2, std::ios::app};
 
-				GetProbs();
-
-				nSignal = 1;
-
-				fit(nSignal,nSignalSigma);
-
-				PROFILE_SCOPE("Writing to files.");
-				outf  << nSignal << "\n";
-				outf2 << testStatistic(nSignal) << "\n";
-
-				sigprobs.clear();
-				bkgprobs.clear();
+				FitAndOutput(signal_events, nSignal, nSignalSigma, outf, outf2);	
 
 				outf.close();
-				outf2.close();
+				outf2.close();			
 			}
 		}
 	}
