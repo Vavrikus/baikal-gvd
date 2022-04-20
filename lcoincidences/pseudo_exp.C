@@ -242,7 +242,7 @@ void FitAndOutput(int signal_events, double& nSignal, double& nSignalSigma, ofst
 
 void GetOutputFiles(int signal_events, int id, bool iterate_ra, ofstream& outf, ofstream& outf2)
 {
-	if(iterate_ra = 1)
+	if(iterate_ra)
 	{
 		string outpath  = "./data/data_nSign_dec_";
 		string outpath2 = "./data/data_tStat_dec_";
@@ -289,7 +289,7 @@ void RunSimulation(int signal_events, double input_dec, double end_dec, double s
 		if (ra_step == 0) //dont iterate ra or dec
 		{
 			std::ofstream outf,outf2;
-			GetOutputFiles(signal_events,id,0,outf,outf2);
+			GetOutputFiles(signal_events,id,true,outf,outf2);
 
 			for (int i = 0; i < nSimulations; ++i)
 			{
@@ -306,7 +306,7 @@ void RunSimulation(int signal_events, double input_dec, double end_dec, double s
 				for (sigRa = -180; sigRa < 180; sigRa += ra_step)
 				{
 					std::ofstream outf,outf2;
-					GetOutputFiles(signal_events,id,1,outf,outf2);
+					GetOutputFiles(signal_events,id,true,outf,outf2);
 
 					FitAndOutput(signal_events, nSignal, nSignalSigma, outf, outf2);
 
@@ -326,7 +326,7 @@ void RunSimulation(int signal_events, double input_dec, double end_dec, double s
 			for (sigDec = input_dec; sigDec <= end_dec; sigDec += step_dec)
 			{
 				std::ofstream outf,outf2;
-				GetOutputFiles(signal_events,id,0,outf,outf2);
+				GetOutputFiles(signal_events,id,false,outf,outf2);
 
 				FitAndOutput(signal_events, nSignal, nSignalSigma, outf, outf2);	
 
