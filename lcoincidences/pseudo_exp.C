@@ -247,8 +247,8 @@ void GetOutputFiles(int signal_events, int id, bool iterate_ra, ofstream& outf, 
 		string outpath  = "./data/data_nSign_dec_";
 		string outpath2 = "./data/data_tStat_dec_";
 
-		outpath  += to_string(sigDec) + "_" + to_string(sigRa) + "_" + id + "_SE" + signal_events + ".txt";
-		outpath2 += to_string(sigDec) + "_" + to_string(sigRa) + "_" + id + "_SE" + signal_events + ".txt";
+		outpath  += to_string(sigDec) + "_" + to_string(sigRa) + "_SE" + signal_events + "_" + id + ".txt";
+		outpath2 += to_string(sigDec) + "_" + to_string(sigRa) + "_SE" + signal_events + "_" + id + ".txt";
 
 		outf  = std::ofstream(outpath, std::ios::app);
 		outf2 = std::ofstream(outpath2, std::ios::app);
@@ -258,8 +258,8 @@ void GetOutputFiles(int signal_events, int id, bool iterate_ra, ofstream& outf, 
 		string outpath  = "./data/data_nSign_dec_";
 		string outpath2 = "./data/data_tStat_dec_";
 
-		outpath  += to_string(sigDec) + "_" + id + "_SE" + signal_events + ".txt";
-		outpath2 += to_string(sigDec) + "_" + id + "_SE" + signal_events + ".txt";
+		outpath  += to_string(sigDec) + "_SE" + signal_events + "_" + id + ".txt";
+		outpath2 += to_string(sigDec) + "_SE" + signal_events + "_" + id + ".txt";
 
 		outf  = std::ofstream(outpath, std::ios::app);
 		outf2 = std::ofstream(outpath2, std::ios::app);
