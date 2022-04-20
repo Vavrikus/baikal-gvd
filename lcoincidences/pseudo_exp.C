@@ -370,7 +370,7 @@ int main(int argc, char** argv)
 	double input_dec;
 	int id, signal_events;
 
-	if(argc < 3) cerr << "Not enough arguments!\n";
+	if(argc < 4) cerr << "Not enough arguments!\n";
 	else
 	{
 		signal_events = stoi(argv[1]);
@@ -379,13 +379,13 @@ int main(int argc, char** argv)
 	}
 
 	double end_dec = 90;
-	if(argc > 3) end_dec = stod(argv[4]);
+	if(argc > 4) end_dec = stod(argv[4]);
 
 	double step_dec = 0;
-	if(argc > 4) step_dec = stod(argv[5]);
+	if(argc > 5) step_dec = stod(argv[5]);
 
 	int iterate_ra = 0;
-	if(argc > 5) iterate_ra = stoi(argv[6]);
+	if(argc > 6) iterate_ra = stoi(argv[6]);
 
 	return pseudo_exp(signal_events,input_dec,id,end_dec,step_dec,iterate_ra);
 }

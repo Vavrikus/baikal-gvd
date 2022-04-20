@@ -13,6 +13,8 @@
 // You will probably want to macro-fy this, to switch on/off easily and use things like __FUNCSIG__ for the profile name.
 //
 #pragma once
+#include <iostream>
+#define DEBUG() std::cout << "Current Line: " << __LINE__ << endl
 
 #if PROFILLING
 

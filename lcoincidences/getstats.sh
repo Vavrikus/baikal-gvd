@@ -9,4 +9,4 @@ seq -w 0 $(($1-1)) | parallel -j+0 --progress ./PE.exe $2 $3 {} $4 $5 $6
 # seq -w 0 2 | parallel -j+0 -Sval,gidra,: --progress 'ls && echo {}'
 # usage: ./getstats.sh (number of runs) (number of signal events) (declination) (end_dec) (step_dec) (iterate_ra, not compulsory)
 # number of runs is number of simulations divided by 10000
-# set step_dec to 0 if you dont want to iterate declination
+# set step_dec to 0 if you dont want to iterate declination, you can also ommit the last 3 arguments
