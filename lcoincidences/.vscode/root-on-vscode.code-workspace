@@ -1,0 +1,26 @@
+{
+	"folders": [
+		{
+			"path": "../"
+		}
+  ],
+  "settings": {
+    "files.associations": {
+      "hsimple.C": "cpp",
+      "iostream": "cpp",
+      "skyfit.C": "cpp",
+      "pseudo_exp.C": "cpp",
+      "disc_pot.C": "cpp"
+    },
+    "C_Cpp.default.includePath": [
+      "${default}",
+      "/home/vavrik/work/root_install/include"
+    ]
+  },
+  "extensions": {
+    "recommendations": [
+      "albertopdrf.root-file-viewer",
+      "ms-vscode.cpptools"
+    ]
+  }
+}

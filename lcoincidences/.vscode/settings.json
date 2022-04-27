@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "skyfit.C":     "cpp",
+        "pseudo_exp.C": "cpp",
+        "disc_pot.C":   "cpp",
+    }
+}
