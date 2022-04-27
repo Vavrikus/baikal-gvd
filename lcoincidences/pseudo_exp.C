@@ -207,8 +207,8 @@ void generate_signal()
 
 	//transformation using horToEq with zero local sidereal time
 	eqCoor coorOut = shiftSpherTrans(radToDeg(dev),radToDeg(angle),raRad,decRad);
-	sig_ev.m_rightAscension = coorOut.rAsc;
-	sig_ev.m_declination    = coorOut.dec;
+	sig_ev.m_rightAscension = degToRad(coorOut.rAsc);
+	sig_ev.m_declination    = degToRad(coorOut.dec);
 
 	sig_ev.m_eventTime = TTimeStamp((tEnd-tStart)*gRandom->Rndm()+tStart,0);
 
@@ -351,7 +351,8 @@ int pseudo_exp(int signal_events, double input_dec, int id, double end_dec = 0, 
 	// costheta->SetNormalized(true);
 	// cout << "costheta(-0.5): " << (*costheta)(-0.5) << endl;
 
-	if (iterate_ra == 1) RunSimulation(signal_events, input_dec, 0, 0, 10, id, nSimulations);
+	if (iterate_ra == 1) 
+		RunSimulation(signal_events, input_dec, 0, 0, 10, id, nSimulations);
 	else RunSimulation(signal_events, input_dec, end_dec, step_dec, 0, id, nSimulations);
 
 	delete pdf_input;
@@ -363,6 +364,25 @@ int pseudo_exp(int signal_events, double input_dec, int id, double end_dec = 0, 
 	PROFILLING_END();
 
 	return 0;
+}
+
+int pseudo_exp()
+{
+	vector<string> args;
+	cout << "Number of signal events?\n";
+	args.push_back(""); cin >> args[0];
+	cout << "Parameter input_dec?\n";
+	args.push_back(""); cin >> args[1];
+	cout << "Parameter id?\n";
+	args.push_back(""); cin >> args[2];
+	cout << "Parameter end_dec?\n";
+	args.push_back(""); cin >> args[3];
+	cout << "Paremeter step_dec?\n";
+	args.push_back(""); cin >> args[4];
+	cout << "Parameter iterate_ra?\n";
+	args.push_back(""); cin >> args[5];
+
+	return pseudo_exp(stoi(args[0]),stod(args[1]),stoi(args[2]),stod(args[3]),stod(args[4]),stoi(args[5]));
 }
 
 int main(int argc, char** argv)

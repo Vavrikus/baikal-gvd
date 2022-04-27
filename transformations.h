@@ -224,6 +224,7 @@ static horCoor eqToHor(const eqCoor& eq, const double& uTime, const double& latD
 }
 
 //transform from shifted spherical coordinates given coordinates of north pole (npoleDec = 90 fails)
+//OUTPUTS DEGREES!!!
 static eqCoor shiftSpherTrans(const double& zenithAngle, const double& Azm, const double& npoleRa,
 					   const double& npoleDec)
 {
