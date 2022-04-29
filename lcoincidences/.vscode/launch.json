@@ -9,7 +9,7 @@
       "args": [
         "-l",
         "-q",
-        "pseudo_exp.C+g"
+        "${file}+g"
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",

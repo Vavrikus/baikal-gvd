@@ -106,7 +106,7 @@ double testStatistic(double bestFit)
 
 	double lNone = 0;
 
-	for(int i = 0; i < nSimulEvents; i++)
+	for(int i = 0; i < simulatedEvents.size(); i++)
 	{
 		lNone += std::log(simulatedEvents.size()*bkgprobs[i]);
 	}
@@ -122,7 +122,7 @@ void logLikelihood(int& npar, double* gin, double& outL, double* par, int iflag)
 
 	outL = 0;
 
-	for(int i = 0; i < nSimulEvents; i++)
+	for(int i = 0; i < simulatedEvents.size(); i++)
 	{
 		outL -= std::log(nSignal*sigprobs[i] + simulatedEvents.size()*bkgprobs[i]);
 	}
