@@ -46,12 +46,12 @@ void ReadAndFill1D(int sig_evs, int dec_index, double dec_step, vector<vector<do
 
 	while(inf)
 	{
+		bool p_bound_reached = false;
+		
 		for (int i = 0; i <= sig_evs; ++i)
 		{
 			string input;
 			getline(inf,input);
-
-			bool p_bound_reached = false;
 
 			try 
 			{
@@ -79,7 +79,8 @@ void ReadAndFill1D(int sig_evs, int dec_index, double dec_step, vector<vector<do
 		        throw;
 	    	}
 
-	    	if((!p_bound_reached) && (i == sig_evs)) exc[dec_index][sig_evs+1]++;
+	    	if((!p_bound_reached) && (i == sig_evs))
+				exc[dec_index][sig_evs+1]++;
 		}
 
 		line_err += sig_evs+1;
@@ -107,6 +108,7 @@ int disc_pot()
 	vector<vector<double>> n_direct;
 	vector<vector<double>> n_exclusive;
 
+	//vector initialization, from now on values will be incremented
 	for (int j = 0; j <= floor(180.0/dec_step); ++j)
 	{
 		vector<double> direct, exclusive;
@@ -137,7 +139,7 @@ int disc_pot()
 
 		for (int i = 0; i <= sig_evs; ++i)
 		{
-			vh_percent[i]->SetBinContent(j+1,n_direct[j][i]/nSimul);
+			vh_percent[i]->SetBinContent(j+1,100*n_direct[j][i]/nSimul);
 			mean += i*n_exclusive[j][i]/nSimul;
 		}
 
