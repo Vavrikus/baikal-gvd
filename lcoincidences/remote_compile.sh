@@ -16,7 +16,7 @@ for i in "${array[@]}"; do
 
 	ssh ${i} '
         home_dir=$(pwd | cat)
-        if [ "$home_dir"="/home/vavrik" ]
+        if [ "$home_dir" = "/home/vavrik" ]
         then
             source /opt/root/bin/thisroot.sh
         fi
