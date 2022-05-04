@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "lcoincidences/skyfit.C": "cpp",
+        "lcoincidences/pseudo_exp.C": "cpp",
+        "lcoincidences/disc_pot.C": "cpp"
+    }
+}

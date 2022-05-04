@@ -6,11 +6,11 @@
   ],
   "settings": {
     "files.associations": {
-      "hsimple.C": "cpp",
       "iostream": "cpp",
-      "skyfit.C": "cpp",
-      "pseudo_exp.C": "cpp",
-      "disc_pot.C": "cpp"
+      "lcoincidences/skyfit.C": "cpp",
+      "lcoincidences/pseudo_exp.C": "cpp",
+      "lcoincidences/disc_pot.C": "cpp",
+      "pseudo_exp.C": "cpp"
     },
     "C_Cpp.default.includePath": [
       "${default}",
