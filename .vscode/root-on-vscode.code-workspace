@@ -1,16 +1,18 @@
 {
 	"folders": [
-		{
-			"path": "../"
-		}
+    {
+      "path": ".."
+    },
+    {
+      "path": "../../root_install/include"
+    }
   ],
   "settings": {
     "files.associations": {
       "iostream": "cpp",
-      "lcoincidences/skyfit.C": "cpp",
-      "lcoincidences/pseudo_exp.C": "cpp",
-      "lcoincidences/disc_pot.C": "cpp",
-      "pseudo_exp.C": "cpp"
+      "pseudo_exp.C": "cpp",
+      "get_prob.C": "cpp",
+      "disc_pot.C": "cpp"
     },
     "C_Cpp.default.includePath": [
       "${default}",

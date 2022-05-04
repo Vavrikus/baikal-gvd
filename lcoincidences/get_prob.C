@@ -2,12 +2,20 @@
 #include <iostream>
 #include <string>
 #include <stdexcept>
+#include <vector>
+
+#include <TF1.h>
+#include <TH1.h>
+#include <TFile.h>
+#include <THStack.h>
+#include <TCanvas.h>
+#include <TStyle.h>
+#include <TPad.h>
 
 using namespace std;
 
 string data_folder = "./data/merged/";//"/media/vavrik/Elements/Baikal-GVD/lcoincidences/fit_results/test_03_dec_5degstep_full/"; //
 double prob_bound = 1-1e-5;
-#define FIND_TS_FOR_PROB_BOUND 0
 
 //1e-5 probability bounds
 const vector<double> fit_bounds = {10.9983,10.888,10.6235,10.4007,10.3206,10.3551,10.3797,10.5331,10.6906,10.8716,11.1583,11.6488,12.2753,13.1082,14.1282,15.2548,16.4592,17.9392,19.7688,22.1002,24.8501,28.3045,31.8804,35.5551,39.5829,44.0158,49.259,54.5009,58.8381,61.8463,63.9316,65.1841,66.6971,68.6378,70.9946,72.7542,73.3589};
@@ -77,10 +85,6 @@ void ReadAndFill1D(double dec, double ra, TH1F* prob_hist, TH1F* prob_hist2)
 {
 	string inpath, inpath2;
 
-#if FIND_TS_FOR_PROB_BOUND
-	std::vector<double> tStat;
-#endif
-
 	if(ra == -1000)
 	{
 		inpath  = data_folder + "fdata_tStat_dec_" + to_string(dec) + "_all.txt";
@@ -110,10 +114,6 @@ void ReadAndFill1D(double dec, double ra, TH1F* prob_hist, TH1F* prob_hist2)
 			{
 				prob_hist->Fill(stod(input));
 
-			#if FIND_TS_FOR_PROB_BOUND
-				tStat.push_back(stod(input));
-			#endif
-
 				// if(stod(input) > 100)
 				// {
 				// 	cout << "VERY LARGE TSTAT INPUT: " << input << endl;
@@ -130,16 +130,6 @@ void ReadAndFill1D(double dec, double ra, TH1F* prob_hist, TH1F* prob_hist2)
 	        throw;
     	}
 	}
-
-#if FIND_TS_FOR_PROB_BOUND
-	sort(tStat.begin(),tStat.end());
-	int low_index = floor(prob_bound*tStat.size());
-	int high_index = ceil(prob_bound*tStat.size());
-	double shift = (prob_bound*tStat.size()-low_index)/(high_index-low_index);
-	if (low_index == high_index) shift = 0;
-	double TS_bound = tStat[low_index]+shift*(tStat[high_index]-tStat[low_index]);
-	cout << TS_bound << "," << std::flush;
-#endif
 
 	line_err = 0;
 	while(inf2)
@@ -176,11 +166,6 @@ int get_prob()
 	TFile* outputFile = new TFile("prob.root","RECREATE");
 	THStack* hs  = new THStack("hs", "Test statistic distribution");
 	THStack* hs2 = new THStack("hs2","nSignal distribution");
-
-#if FIND_TS_FOR_PROB_BOUND
-	gErrorIgnoreLevel = 6001; //no ROOT errors please
-	cout << "{" << std::flush;
-#endif
 
 	for(double sigDec = -90; sigDec <= 90; sigDec += 5)
 	{
@@ -250,10 +235,6 @@ int get_prob()
 		hs->Add(prob_hist_cumul);
 		hs2->Add(prob_hist2_cumul);
 	}
-
-#if FIND_TS_FOR_PROB_BOUND
-	cout << "}" << std::endl;
-#endif
 
 	TCanvas* c1 = new TCanvas("a1","TS distribution");
 	gStyle->SetOptStat(111111);
