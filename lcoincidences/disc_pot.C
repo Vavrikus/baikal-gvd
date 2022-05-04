@@ -16,7 +16,7 @@
 #include "TTree.h"
 #include "TVirtualFitter.h"
 
-string data_folder = "./data/merged/";//"/media/vavrik/Elements/Baikal-GVD/lcoincidences/fit_results/test_03_dec_5degstep_full/"; //
+string data_folder = "/media/vavrik/Elements/Baikal-GVD/lcoincidences/fit_results/test_06_dec_5degstep_signal_0_to_20/"; //"./data/merged/";//
 
 //1e-5 probability bounds
 const vector<double> fit_bounds = {10.9983,10.888,10.6235,10.4007,10.3206,10.3551,10.3797,10.5331,10.6906,10.8716,11.1583,11.6488,12.2753,13.1082,14.1282,15.2548,16.4592,17.9392,19.7688,22.1002,24.8501,28.3045,31.8804,35.5551,39.5829,44.0158,49.259,54.5009,58.8381,61.8463,63.9316,65.1841,66.6971,68.6378,70.9946,72.7542,73.3589};
@@ -89,9 +89,9 @@ void ReadAndFill1D(int sig_evs, int dec_index, double dec_step, vector<vector<do
 
 int disc_pot()
 {
-	int sig_evs = 5;
+	int sig_evs = 20;
 	double dec_step = 5;
-	int nSimul = 80000;
+	int nSimul = 1000000;
 
 	// TFile* prob_input = TFile::Open("prob.root","READ");
 

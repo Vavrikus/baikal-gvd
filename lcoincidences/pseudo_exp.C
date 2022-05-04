@@ -237,7 +237,7 @@ void FitAndOutput(int signal_events, double& nSignal, double& nSignalSigma, ofst
 	simulatedEvents.resize(simulatedEvents.size() - signal_events);
 
 	sigprobs.clear();
-	bkgprobs.clear();
+	bkgprobs.clear(); //NOT OPTIMAL IN CURRENT CONTEXT
 }
 
 void GetOutputFiles(int signal_events, int id, bool iterate_ra, ofstream& outf, ofstream& outf2)
@@ -250,8 +250,8 @@ void GetOutputFiles(int signal_events, int id, bool iterate_ra, ofstream& outf, 
 		outpath  += to_string(sigDec) + "_" + to_string(sigRa) + "_SE" + signal_events + "_" + id + ".txt";
 		outpath2 += to_string(sigDec) + "_" + to_string(sigRa) + "_SE" + signal_events + "_" + id + ".txt";
 
-		outf  = std::ofstream(outpath, std::ios::app);
-		outf2 = std::ofstream(outpath2, std::ios::app);
+		outf.open(outpath, std::ios::app);
+		outf2.open(outpath2, std::ios::app);
 	}
 	else
 	{
@@ -261,8 +261,8 @@ void GetOutputFiles(int signal_events, int id, bool iterate_ra, ofstream& outf, 
 		outpath  += to_string(sigDec) + "_SE" + signal_events + "_" + id + ".txt";
 		outpath2 += to_string(sigDec) + "_SE" + signal_events + "_" + id + ".txt";
 
-		outf  = std::ofstream(outpath, std::ios::app);
-		outf2 = std::ofstream(outpath2, std::ios::app);
+		outf.open(outpath, std::ios::app);
+		outf2.open(outpath2, std::ios::app);
 	}
 }
 
